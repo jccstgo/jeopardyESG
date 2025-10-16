@@ -633,8 +633,11 @@ function updateScores(scores) {
 }
 
 // Menú contextual para ajustar puntajes
-document.querySelectorAll('.buzzer-btn').forEach((btn, idx) => {
-    btn.addEventListener('contextmenu', (e) => {
+// Nota: los botones de timbre suelen estar deshabilitados, por lo que no
+// reciben eventos de contexto. Asociamos el menú al contenedor completo del
+// jugador para garantizar que el clic derecho funcione siempre.
+document.querySelectorAll('.player').forEach((playerEl, idx) => {
+    playerEl.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
         showScoreMenu(e, idx);
@@ -652,7 +655,18 @@ document.getElementById('app').addEventListener('contextmenu', (e) => {
 function showScoreMenu(event, playerIdx) {
     const menu = document.getElementById('score-menu');
     gameState.contextMenuPlayer = playerIdx;
-    
+
+    // Si el menú está dentro de un contenedor con z-index menor (como el header),
+    // lo movemos al <body> la primera vez para que pueda quedar por encima del
+    // overlay semitransparente. De lo contrario el overlay bloquea la interacción.
+    if (menu.parentElement !== document.body) {
+        // Guardar el contenedor original para referencia futura si es necesario.
+        if (!menu.dataset.originalParent) {
+            menu.dataset.originalParent = menu.parentElement.id || '';
+        }
+        document.body.appendChild(menu);
+    }
+
     // Crear overlay si no existe
     let overlay = document.getElementById('menu-overlay');
     if (!overlay) {
@@ -672,8 +686,7 @@ function showScoreMenu(event, playerIdx) {
         
         // Cerrar menú al hacer clic en el overlay
         overlay.addEventListener('click', () => {
-            menu.style.display = 'none';
-            overlay.remove();
+            closeScoreMenu();
         });
     }
     
@@ -725,10 +738,11 @@ document.addEventListener('keydown', (e) => {
 function closeScoreMenu() {
     const menu = document.getElementById('score-menu');
     const overlay = document.getElementById('menu-overlay');
-    
+
     menu.style.display = 'none';
     if (overlay) overlay.remove();
-    
+    gameState.contextMenuPlayer = null;
+
     console.log('📋 Menú contextual cerrado');
 }
 
