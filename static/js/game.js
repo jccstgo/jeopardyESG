@@ -633,8 +633,11 @@ function updateScores(scores) {
 }
 
 // Menú contextual para ajustar puntajes
-document.querySelectorAll('.buzzer-btn').forEach((btn, idx) => {
-    btn.addEventListener('contextmenu', (e) => {
+// Nota: los botones de timbre suelen estar deshabilitados, por lo que no
+// reciben eventos de contexto. Asociamos el menú al contenedor completo del
+// jugador para garantizar que el clic derecho funcione siempre.
+document.querySelectorAll('.player').forEach((playerEl, idx) => {
+    playerEl.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
         showScoreMenu(e, idx);
@@ -672,8 +675,7 @@ function showScoreMenu(event, playerIdx) {
         
         // Cerrar menú al hacer clic en el overlay
         overlay.addEventListener('click', () => {
-            menu.style.display = 'none';
-            overlay.remove();
+            closeScoreMenu();
         });
     }
     
@@ -725,10 +727,11 @@ document.addEventListener('keydown', (e) => {
 function closeScoreMenu() {
     const menu = document.getElementById('score-menu');
     const overlay = document.getElementById('menu-overlay');
-    
+
     menu.style.display = 'none';
     if (overlay) overlay.remove();
-    
+    gameState.contextMenuPlayer = null;
+
     console.log('📋 Menú contextual cerrado');
 }
 
