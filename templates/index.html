@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Jeopardy - Escuela Superior de Guerra</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+</head>
+<body>
+    <div id="app">
+        <!-- BARRA SUPERIOR -->
+        <header id="header">
+            <div id="players-bar">
+                <!-- Equipos -->
+                <div class="player" data-player="0">
+                    <button class="buzzer-btn" onclick="pressBuzzer(0)" disabled>
+                        <span>🏆</span> Equipo 1
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="1">
+                    <button class="buzzer-btn" onclick="pressBuzzer(1)" disabled>
+                        <span>🏆</span> Equipo 2
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="2">
+                    <button class="buzzer-btn" onclick="pressBuzzer(2)" disabled>
+                        <span>🏆</span> Equipo 3
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="3">
+                    <button class="buzzer-btn" onclick="pressBuzzer(3)" disabled>
+                        <span>🏆</span> Equipo 4
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="4">
+                    <button class="buzzer-btn" onclick="pressBuzzer(4)" disabled>
+                        <span>🏆</span> Equipo 5
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                
+                <!-- Temporizador -->
+                <div id="timer-container">
+                    <div class="timer-label">⏱️ Tiempo</div>
+                    <div id="timer">—</div>
+                </div>
+            </div>
+            
+            <!-- Menú contextual para ajustar puntajes -->
+            <div id="score-menu" class="context-menu" style="display: none;">
+                <div class="menu-header">⚙️ Ajustar Puntaje</div>
+                <div class="menu-item" onclick="adjustScore('current', 500)">➕ Sumar +500</div>
+                <div class="menu-item" onclick="adjustScore('current', 400)">➕ Sumar +400</div>
+                <div class="menu-item" onclick="adjustScore('current', 300)">➕ Sumar +300</div>
+                <div class="menu-item" onclick="adjustScore('current', 200)">➕ Sumar +200</div>
+                <div class="menu-item" onclick="adjustScore('current', 100)">➕ Sumar +100</div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" onclick="adjustScore('current', -100)">➖ Restar -100</div>
+                <div class="menu-item" onclick="adjustScore('current', -200)">➖ Restar -200</div>
+                <div class="menu-item" onclick="adjustScore('current', -300)">➖ Restar -300</div>
+                <div class="menu-item" onclick="adjustScore('current', -400)">➖ Restar -400</div>
+                <div class="menu-item" onclick="adjustScore('current', -500)">➖ Restar -500</div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" onclick="adjustScoreByQuestionValue('current', 1)">➕ Sumar valor de pregunta</div>
+                <div class="menu-item" onclick="adjustScoreByQuestionValue('current', -1)">➖ Restar valor de pregunta</div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" onclick="editScore()">✏️ Editar manualmente...</div>
+                <div class="menu-item" onclick="resetPlayerScore()">🔄 Reiniciar a 0</div>
+            </div>
+            
+            <!-- Barra de estado -->
+            <div id="status-bar" class="info">
+                🎯 Selecciona una casilla para abrir una pregunta
+            </div>
+            
+            <!-- Panel de ajuste rápido (visible en modo tablero) -->
+            <div id="quick-adjust-panel" style="display: none;">
+                <div class="quick-adjust-header">⚡ Ajuste Rápido de Puntajes</div>
+                <div class="quick-adjust-content">
+                    <div class="player-adjust" data-player="0">
+                        <span class="player-name">Equipo 1</span>
+                        <div class="adjust-buttons">
+                            <button class="btn-adjust minus" onclick="quickAdjust(0, -100)" title="Restar 100">-100</button>
+                            <span class="player-quick-score">0</span>
+                            <button class="btn-adjust plus" onclick="quickAdjust(0, 100)" title="Sumar 100">+100</button>
+                        </div>
+                    </div>
+                    <div class="player-adjust" data-player="1">
+                        <span class="player-name">Equipo 2</span>
+                        <div class="adjust-buttons">
+                            <button class="btn-adjust minus" onclick="quickAdjust(1, -100)">-100</button>
+                            <span class="player-quick-score">0</span>
+                            <button class="btn-adjust plus" onclick="quickAdjust(1, 100)">+100</button>
+                        </div>
+                    </div>
+                    <div class="player-adjust" data-player="2">
+                        <span class="player-name">Equipo 3</span>
+                        <div class="adjust-buttons">
+                            <button class="btn-adjust minus" onclick="quickAdjust(2, -100)">-100</button>
+                            <span class="player-quick-score">0</span>
+                            <button class="btn-adjust plus" onclick="quickAdjust(2, 100)">+100</button>
+                        </div>
+                    </div>
+                    <div class="player-adjust" data-player="3">
+                        <span class="player-name">Equipo 4</span>
+                        <div class="adjust-buttons">
+                            <button class="btn-adjust minus" onclick="quickAdjust(3, -100)">-100</button>
+                            <span class="player-quick-score">0</span>
+                            <button class="btn-adjust plus" onclick="quickAdjust(3, 100)">+100</button>
+                        </div>
+                    </div>
+                    <div class="player-adjust" data-player="4">
+                        <span class="player-name">Equipo 5</span>
+                        <div class="adjust-buttons">
+                            <button class="btn-adjust minus" onclick="quickAdjust(4, -100)">-100</button>
+                            <span class="player-quick-score">0</span>
+                            <button class="btn-adjust plus" onclick="quickAdjust(4, 100)">+100</button>
+                        </div>
+                    </div>
+                    <button class="btn-toggle-adjust" onclick="toggleQuickAdjust()">✕ Cerrar Panel</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ÁREA CENTRAL -->
+        <main id="main-content">
+            <!-- TABLERO -->
+            <div id="board-container">
+                <div id="board">
+                    <!-- Generado dinámicamente por JS -->
+                </div>
+            </div>
+
+            <!-- PANEL DE PREGUNTA -->
+            <div id="question-panel" style="display: none;">
+                <div class="question-header">
+                    <span id="question-category">📚 Categoría</span>
+                    <span id="question-value">💰 Valor: 0</span>
+                </div>
+                <div id="question-text">Pregunta aquí...</div>
+                
+                <div id="choices-container">
+                    <!-- Opciones a-d -->
+                </div>
+                
+                <div id="question-status">
+                    ⏳ Esperando timbre...
+                </div>
+            </div>
+        </main>
+
+        <!-- CONTROLES INFERIORES -->
+        <footer id="controls">
+            <!-- Modo Tablero -->
+            <div id="board-controls">
+                <button class="btn-warning" onclick="toggleQuickAdjust()">⚙️ Ajustar Puntajes</button>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="hide-answers" onchange="toggleHideAnswers()">
+                    <span>🔒 Ocultar respuestas</span>
+                </label>
+                <button class="btn-primary" onclick="loadData()">📂 Cargar</button>
+                <button class="btn-primary" onclick="resetGame()">🔄 Reiniciar</button>
+                <button class="btn-secondary" onclick="confirmExit()">❌ Salir</button>
+            </div>
+
+            <!-- Modo Pregunta (respuestas visibles) -->
+            <div id="panel-controls" style="display: none;">
+                <button class="btn-success" onclick="submitAnswer()">✓ Responder</button>
+                <button class="btn-secondary" onclick="cancelQuestion()">✕ Cancelar</button>
+            </div>
+
+            <!-- Modo Moderador (respuestas ocultas) -->
+            <div id="moderator-controls" style="display: none;">
+                <button class="btn-success" onclick="moderatorCorrect()">✓ Correcto</button>
+                <button class="btn-danger" onclick="moderatorIncorrect()">✕ Incorrecto</button>
+                <button class="btn-secondary" onclick="cancelQuestion()">↩ Cancelar</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <!-- Script principal -->
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy - Escuela Superior de Guerra</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="app">
+        <!-- BARRA SUPERIOR -->
+        <header id="header">
+            <div id="players-bar">
+                <!-- Equipos -->
+                <div class="player" data-player="0">
+                    <button class="buzzer-btn" onclick="pressBuzzer(0)" disabled>
+                        Equipo 1
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="1">
+                    <button class="buzzer-btn" onclick="pressBuzzer(1)" disabled>
+                        Equipo 2
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="2">
+                    <button class="buzzer-btn" onclick="pressBuzzer(2)" disabled>
+                        Equipo 3
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="3">
+                    <button class="buzzer-btn" onclick="pressBuzzer(3)" disabled>
+                        Equipo 4
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                <div class="player" data-player="4">
+                    <button class="buzzer-btn" onclick="pressBuzzer(4)" disabled>
+                        Equipo 5
+                    </button>
+                    <div class="score">0</div>
+                </div>
+                
+                <!-- Temporizador -->
+                <div id="timer-container">
+                    <div class="timer-label">Tiempo</div>
+                    <div id="timer">—</div>
+                </div>
+            </div>
+            
+            <!-- Menú contextual para ajustar puntajes -->
+            <div id="score-menu" class="context-menu" style="display: none;">
+                <div class="menu-item" onclick="adjustScore('current', 100)">➕ Sumar +100</div>
+                <div class="menu-item" onclick="adjustScore('current', -100)">➖ Restar -100</div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" onclick="editScore()">✏️ Editar...</div>
+            </div>
+            
+            <!-- Barra de estado -->
+            <div id="status-bar" class="info">
+                Selecciona una casilla para abrir una pregunta
+            </div>
+        </header>
+
+        <!-- ÁREA CENTRAL -->
+        <main id="main-content">
+            <!-- TABLERO -->
+            <div id="board-container">
+                <div id="board">
+                    <!-- Generado dinámicamente por JS -->
+                </div>
+            </div>
+
+            <!-- PANEL DE PREGUNTA -->
+            <div id="question-panel" style="display: none;">
+                <div class="question-header">
+                    <span id="question-category"></span>
+                    <span id="question-value"></span>
+                </div>
+                <div id="question-text"></div>
+                
+                <div id="choices-container">
+                    <!-- Opciones a-d -->
+                </div>
+                
+                <div id="question-status">
+                    Esperando timbre...
+                </div>
+            </div>
+        </main>
+
+        <!-- CONTROLES INFERIORES -->
+        <footer id="controls">
+            <!-- Modo Tablero -->
+            <div id="board-controls">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="hide-answers" onchange="toggleHideAnswers()">
+                    <span>Ocultar respuestas</span>
+                </label>
+                <button onclick="loadData()">📂 Cargar</button>
+                <button onclick="resetGame()">🔄 Reiniciar</button>
+                <button onclick="confirmExit()">❌ Salir</button>
+            </div>
+
+            <!-- Modo Pregunta (respuestas visibles) -->
+            <div id="panel-controls" style="display: none;">
+                <button class="btn-primary" onclick="submitAnswer()">✓ Responder</button>
+                <button class="btn-secondary" onclick="cancelQuestion()">✕ Cancelar</button>
+            </div>
+
+            <!-- Modo Moderador (respuestas ocultas) -->
+            <div id="moderator-controls" style="display: none;">
+                <button class="btn-success" onclick="moderatorCorrect()">✓ Correcto</button>
+                <button class="btn-danger" onclick="moderatorIncorrect()">✕ Incorrecto</button>
+                <button class="btn-secondary" onclick="cancelQuestion()">Cancelar</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <!-- Script principal -->
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+</body>
+</html>
