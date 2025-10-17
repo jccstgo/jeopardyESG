@@ -63,7 +63,8 @@ class GameState:
     
     def __init__(self):
         self.data = SAMPLE_DATA
-        self.player_scores = [0, 0, 0, 0, 0]
+        self.player_count = 5
+        self.player_scores = [0] * self.player_count
         self.used_questions: Set[Tuple[int, int]] = set()
         self.tile_status: Dict[Tuple[int, int], str] = {}  # 'correct' | 'used'
         self.current_buzzer: Optional[int] = None
@@ -75,7 +76,7 @@ class GameState:
         
     def reset_game(self):
         """Reinicia el juego completo"""
-        self.player_scores = [0, 0, 0, 0, 0]
+        self.player_scores = [0] * self.player_count
         self.used_questions.clear()
         self.tile_status.clear()
         self.current_buzzer = None
@@ -117,7 +118,10 @@ class GameState:
         """Un jugador presiona su buzzer"""
         if self.current_question is None:
             return {"error": "No hay pregunta activa"}
-            
+
+        if not isinstance(player_idx, int) or not (0 <= player_idx < self.player_count):
+            return {"error": "Índice de jugador inválido"}
+
         if self.current_buzzer is not None:
             return {"error": "Ya hay un jugador respondiendo"}
             
@@ -137,7 +141,10 @@ class GameState:
         """Procesa una respuesta del jugador"""
         if self.current_question is None:
             return {"error": "No hay pregunta activa"}
-            
+
+        if not isinstance(player_idx, int) or not (0 <= player_idx < self.player_count):
+            return {"error": "Índice de jugador inválido"}
+
         if self.current_buzzer != player_idx:
             return {"error": "No es tu turno"}
         
@@ -183,7 +190,7 @@ class GameState:
             self.timer_active = False
             
             # ¿Quedan jugadores?
-            remaining = [i for i in range(5) if i not in self.tried_players]
+            remaining = [i for i in range(self.player_count) if i not in self.tried_players]
             
             if remaining:
                 # Rebote
@@ -214,7 +221,10 @@ class GameState:
         """Moderador marca como correcta (modo respuestas ocultas)"""
         if self.current_question is None:
             return {"error": "No hay pregunta activa"}
-            
+
+        if not isinstance(player_idx, int) or not (0 <= player_idx < self.player_count):
+            return {"error": "Índice de jugador inválido"}
+
         if self.current_buzzer != player_idx:
             return {"error": "No es el turno de este jugador"}
             
@@ -241,7 +251,10 @@ class GameState:
         """Moderador marca como incorrecta (modo respuestas ocultas)"""
         if self.current_question is None:
             return {"error": "No hay pregunta activa"}
-            
+
+        if not isinstance(player_idx, int) or not (0 <= player_idx < self.player_count):
+            return {"error": "Índice de jugador inválido"}
+
         if self.current_buzzer != player_idx:
             return {"error": "No es el turno de este jugador"}
             
@@ -254,7 +267,7 @@ class GameState:
         self.current_buzzer = None
         self.timer_active = False
         
-        remaining = [i for i in range(5) if i not in self.tried_players]
+        remaining = [i for i in range(self.player_count) if i not in self.tried_players]
         
         if remaining:
             return {
@@ -299,14 +312,14 @@ class GameState:
         
     def adjust_score(self, player_idx: int, delta: int):
         """Ajusta el puntaje de un jugador manualmente"""
-        if 0 <= player_idx < 5:
+        if 0 <= player_idx < self.player_count:
             self.player_scores[player_idx] += delta
             return {"success": True, "new_score": self.player_scores[player_idx]}
         return {"error": "Índice de jugador inválido"}
-        
+
     def set_score(self, player_idx: int, score: int):
         """Establece el puntaje de un jugador directamente"""
-        if 0 <= player_idx < 5:
+        if 0 <= player_idx < self.player_count:
             self.player_scores[player_idx] = score
             return {"success": True, "new_score": self.player_scores[player_idx]}
         return {"error": "Índice de jugador inválido"}
@@ -317,9 +330,10 @@ class GameState:
             "categories": self.data["categories"],
             "used": list(self.used_questions),
             "tile_status": {f"{k[0]},{k[1]}": v for k, v in self.tile_status.items()},
-            "scores": self.player_scores
+            "scores": self.player_scores,
+            "player_count": self.player_count
         }
-        
+
     def get_game_state(self) -> Dict:
         """Obtiene el estado completo del juego"""
         return {
@@ -328,7 +342,50 @@ class GameState:
             "tried_players": list(self.tried_players),
             "timer_active": self.timer_active,
             "hide_answers": self.hide_answers,
-            "has_question": self.current_question is not None
+            "has_question": self.current_question is not None,
+            "player_count": self.player_count
+        }
+
+    def set_player_count(self, count: int) -> Dict:
+        """Configura la cantidad de equipos permitidos"""
+        try:
+            count = int(count)
+        except (TypeError, ValueError):
+            return {"error": "Cantidad de equipos inválida"}
+
+        count = max(2, min(10, count))
+
+        if count == self.player_count:
+            return {
+                "success": True,
+                "player_count": self.player_count,
+                "scores": self.player_scores,
+                "current_buzzer": self.current_buzzer,
+                "tried_players": list(self.tried_players),
+                "timer_active": self.timer_active
+            }
+
+        # Ajustar puntajes existentes
+        if count > self.player_count:
+            self.player_scores.extend([0] * (count - self.player_count))
+        else:
+            self.player_scores = self.player_scores[:count]
+
+        self.player_count = count
+
+        # Limpiar estados que referencian jugadores eliminados
+        self.tried_players = {i for i in self.tried_players if i < count}
+        if self.current_buzzer is not None and self.current_buzzer >= count:
+            self.current_buzzer = None
+            self.timer_active = False
+
+        return {
+            "success": True,
+            "player_count": self.player_count,
+            "scores": self.player_scores,
+            "current_buzzer": self.current_buzzer,
+            "tried_players": list(self.tried_players),
+            "timer_active": self.timer_active
         }
 
 
