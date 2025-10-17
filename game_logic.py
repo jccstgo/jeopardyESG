@@ -391,23 +391,22 @@ def load_from_csv_sampled(
         random.seed(rng_seed)
         
     used_ids = _read_used_ids(used_csv_path)
-    bucket: Dict[Tuple[str, int], List[dict]] = {}
-    
-    try:
-        with open(path, "r", encoding="utf-8", newline="") as f:
+    def _load_bucket_with_encoding(encoding: str) -> Dict[Tuple[str, int], List[dict]]:
+        bucket_local: Dict[Tuple[str, int], List[dict]] = {}
+        with open(path, "r", encoding=encoding, newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 try:
                     qid = int(str(row.get("idpregunta", "")).strip())
                 except ValueError:
                     continue
-                    
+
                 cat = (row.get("category") or "General").strip()
                 try:
                     val = int(str(row.get("value", "0")).strip())
                 except ValueError:
                     continue
-                    
+
                 question = (row.get("question") or "").strip()
                 choices = [
                     (row.get("choice_a") or "").strip(),
@@ -415,7 +414,7 @@ def load_from_csv_sampled(
                     (row.get("choice_c") or "").strip(),
                     (row.get("choice_d") or "").strip(),
                 ]
-                
+
                 ans_raw = str(row.get("answer", "")).strip().lower()
                 if ans_raw in ("a", "b", "c", "d"):
                     answer = "abcd".index(ans_raw)
@@ -424,8 +423,8 @@ def load_from_csv_sampled(
                         answer = int(ans_raw)
                     except:
                         answer = 0
-                        
-                bucket.setdefault((cat, val), []).append({
+
+                bucket_local.setdefault((cat, val), []).append({
                     "idpregunta": qid,
                     "category": cat,
                     "value": val,
@@ -433,8 +432,26 @@ def load_from_csv_sampled(
                     "choices": choices,
                     "answer": answer,
                 })
-    except Exception as e:
-        print(f"Error leyendo CSV: {e}")
+        return bucket_local
+
+    bucket: Dict[Tuple[str, int], List[dict]] = {}
+    encodings_to_try = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    last_error: Optional[Exception] = None
+
+    for enc in encodings_to_try:
+        try:
+            bucket = _load_bucket_with_encoding(enc)
+            break
+        except UnicodeDecodeError as e:
+            last_error = e
+            continue
+        except FileNotFoundError as e:
+            raise e
+        except Exception as e:
+            print(f"Error leyendo CSV: {e}")
+            return SAMPLE_DATA
+    else:
+        print(f"Error leyendo CSV: {last_error}")
         return SAMPLE_DATA
         
     categories = {}
