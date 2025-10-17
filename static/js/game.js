@@ -532,25 +532,32 @@ function confirmExit() {
 
 function startTimer(seconds) {
     stopTimer(); // Detener temporizador previo
-    
+
     let remaining = seconds;
     elements.timer.textContent = remaining;
     elements.timer.style.color = '#FF3333';
-    
+    elements.timer.style.fontSize = '56px';
+    elements.timer.style.animation = '';
+
     gameState.timerInterval = setInterval(() => {
         remaining--;
         elements.timer.textContent = remaining;
-        
+
         // Cambiar color según tiempo restante
         if (remaining <= 3) {
             elements.timer.style.color = '#FF0000';
-            elements.timer.style.fontSize = '42px';
+            elements.timer.style.fontSize = '64px';
             elements.timer.style.animation = 'timerUrgent 0.5s infinite';
         } else if (remaining <= 6) {
             elements.timer.style.color = '#FF6B00';
-            elements.timer.style.fontSize = '38px';
+            elements.timer.style.fontSize = '52px';
+            elements.timer.style.animation = '';
+        } else {
+            elements.timer.style.color = '#FF3333';
+            elements.timer.style.fontSize = '56px';
+            elements.timer.style.animation = '';
         }
-        
+
         // Sonido a los 6 segundos
         if (remaining === 6) {
             playSound('countdown');
@@ -589,7 +596,7 @@ function stopTimer() {
     }
     elements.timer.textContent = '—';
     elements.timer.style.color = '#FF3333';
-    elements.timer.style.fontSize = '36px';
+    elements.timer.style.fontSize = '56px';
     elements.timer.style.animation = '';
     stopSound('countdown');
 }

@@ -82,7 +82,7 @@ body {
 
 #players-bar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr) auto;
+    grid-template-columns: repeat(5, 1fr);
     gap: 16px;
     margin-bottom: 16px;
 }
@@ -206,26 +206,31 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0 20px;
+    gap: 10px;
+    padding: 18px 28px;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 16px;
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    width: min(320px, 100%);
 }
 
 .timer-label {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: bold;
-    margin-bottom: 6px;
     color: var(--accent-gold);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 
 #timer {
     background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
     color: #FF3333;
-    font-size: 36px;
+    font-size: 56px;
     font-weight: bold;
-    padding: 12px 24px;
-    border-radius: 12px;
-    min-width: 100px;
+    padding: 18px 32px;
+    border-radius: 14px;
+    min-width: 160px;
     text-align: center;
     font-family: 'Courier New', monospace;
     border: 3px solid var(--accent-gold);
@@ -640,6 +645,9 @@ body {
     animation: slideInUp 0.4s ease;
     position: relative;
     z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
 @keyframes slideInUp {
@@ -750,6 +758,15 @@ body {
     color: var(--white);
 }
 
+#question-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+}
+
 #question-status {
     text-align: center;
     font-size: 18px;
@@ -759,6 +776,7 @@ body {
     background: rgba(255, 215, 0, 0.1);
     border-radius: 12px;
     border: 2px solid rgba(255, 215, 0, 0.3);
+    width: min(100%, 540px);
 }
 
 /* ===========================
@@ -899,18 +917,18 @@ button:active {
     #players-bar {
         grid-template-columns: repeat(3, 1fr);
     }
-    
-    #timer-container {
-        grid-column: 1 / -1;
-        margin-top: 15px;
-    }
-    
+
     .board-cell.header {
         font-size: 18px;
     }
-    
+
     .board-cell.clue {
         font-size: 26px;
+    }
+
+    #timer {
+        font-size: 48px;
+        padding: 16px 28px;
     }
 }
 
@@ -936,20 +954,29 @@ button:active {
         font-size: 20px;
         min-height: 70px;
     }
-    
+
     #question-panel {
         padding: 25px;
     }
-    
+
     #question-text {
         font-size: 18px;
     }
-    
+
     .choice-option {
         font-size: 16px;
         padding: 16px 20px;
     }
-    
+
+    #question-status {
+        width: 100%;
+    }
+
+    #timer {
+        font-size: 42px;
+        padding: 14px 24px;
+    }
+
     button {
         padding: 10px 20px;
         font-size: 13px;
