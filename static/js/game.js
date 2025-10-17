@@ -26,8 +26,13 @@ const elements = {
     boardControls: document.getElementById('board-controls'),
     panelControls: document.getElementById('panel-controls'),
     moderatorControls: document.getElementById('moderator-controls'),
-    hideAnswersCheckbox: document.getElementById('hide-answers')
+    hideAnswersCheckbox: document.getElementById('hide-answers'),
+    fileInput: document.getElementById('file-input')
 };
+
+if (elements.fileInput) {
+    elements.fileInput.addEventListener('change', handleFileSelection);
+}
 
 // Algunos templates antiguos incluían múltiples instancias del menú contextual de
 // puntajes. Si detectamos copias extra, las eliminamos para evitar que se
@@ -489,14 +494,55 @@ function resetGame() {
     }
 }
 
+function handleFileSelection(event) {
+    const input = event.target;
+    const file = input.files && input.files[0];
+
+    if (!file) {
+        return;
+    }
+
+    console.log('📁 Archivo seleccionado:', file.name);
+    setStatus(`Cargando ${file.name}...`, 'info');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/api/load-data', {
+        method: 'POST',
+        body: formData
+    })
+        .then(async (response) => {
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok && data.success) {
+                setStatus(data.message || 'Datos cargados correctamente', 'correct');
+            } else {
+                const errorMessage = data.error || 'Error al cargar archivo';
+                throw new Error(errorMessage);
+            }
+        })
+        .catch((err) => {
+            console.error('Error al cargar archivo:', err);
+            setStatus(err.message || 'Error al cargar archivo', 'incorrect');
+        })
+        .finally(() => {
+            input.value = '';
+        });
+}
+
 function loadData() {
-    // Por simplicidad, cargar datos de ejemplo
-    // En producción, podrías usar un file input
+    if (elements.fileInput) {
+        elements.fileInput.click();
+        return;
+    }
+
+    // Compatibilidad con versiones anteriores
     const path = prompt('Ruta del archivo (JSON o CSV):', 'data/questions.json');
     if (!path) return;
-    
+
     const type = path.toLowerCase().endsWith('.csv') ? 'csv' : 'json';
-    
+
     fetch('/api/load-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

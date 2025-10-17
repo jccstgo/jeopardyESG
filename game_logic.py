@@ -7,8 +7,10 @@ import json
 import csv
 import random
 import hashlib
+import zipfile
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Any
+from xml.etree import ElementTree as ET
+from typing import Dict, List, Set, Tuple, Optional, Any, Iterable
 
 TIME_LIMIT_SECONDS = 10
 
@@ -389,58 +391,67 @@ def load_from_csv_sampled(
     """Carga CSV con muestreo aleatorio excluyendo usadas"""
     if rng_seed is not None:
         random.seed(rng_seed)
-        
+
     used_ids = _read_used_ids(used_csv_path)
-    bucket: Dict[Tuple[str, int], List[dict]] = {}
-    
+
     try:
-        with open(path, "r", encoding="utf-8", newline="") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                try:
-                    qid = int(str(row.get("idpregunta", "")).strip())
-                except ValueError:
-                    continue
-                    
-                cat = (row.get("category") or "General").strip()
-                try:
-                    val = int(str(row.get("value", "0")).strip())
-                except ValueError:
-                    continue
-                    
-                question = (row.get("question") or "").strip()
-                choices = [
-                    (row.get("choice_a") or "").strip(),
-                    (row.get("choice_b") or "").strip(),
-                    (row.get("choice_c") or "").strip(),
-                    (row.get("choice_d") or "").strip(),
-                ]
-                
-                ans_raw = str(row.get("answer", "")).strip().lower()
-                if ans_raw in ("a", "b", "c", "d"):
-                    answer = "abcd".index(ans_raw)
-                else:
-                    try:
-                        answer = int(ans_raw)
-                    except:
-                        answer = 0
-                        
-                bucket.setdefault((cat, val), []).append({
-                    "idpregunta": qid,
-                    "category": cat,
-                    "value": val,
-                    "question": question,
-                    "choices": choices,
-                    "answer": answer,
-                })
+        rows = list(_read_question_rows(path))
+    except UnicodeDecodeError as e:
+        print(f"Error leyendo CSV: {e}")
+        return SAMPLE_DATA
+    except FileNotFoundError:
+        raise
     except Exception as e:
         print(f"Error leyendo CSV: {e}")
         return SAMPLE_DATA
-        
+
+    bucket: Dict[Tuple[str, int], List[dict]] = {}
+
+    for raw_row in rows:
+        try:
+            qid = int(str(raw_row.get("idpregunta", "")).strip())
+        except ValueError:
+            continue
+
+        cat = (raw_row.get("category") or "General").strip()
+        try:
+            val = int(float(str(raw_row.get("value", "0")).strip() or "0"))
+        except ValueError:
+            continue
+
+        question = (raw_row.get("question") or "").strip()
+        choices = [
+            (raw_row.get("choice_a") or "").strip(),
+            (raw_row.get("choice_b") or "").strip(),
+            (raw_row.get("choice_c") or "").strip(),
+            (raw_row.get("choice_d") or "").strip(),
+        ]
+
+        ans_raw = str(raw_row.get("answer", "")).strip().lower()
+        if ans_raw in ("a", "b", "c", "d"):
+            answer = "abcd".index(ans_raw)
+        else:
+            try:
+                answer = int(ans_raw)
+            except Exception:
+                answer = 0
+
+        bucket.setdefault((cat, val), []).append({
+            "idpregunta": qid,
+            "category": cat,
+            "value": val,
+            "question": question,
+            "choices": choices,
+            "answer": answer,
+        })
+
     categories = {}
     cats_in_csv = sorted({cat for (cat, _) in bucket.keys()})
     used_rows_to_append = []
-    
+
+    if not cats_in_csv:
+        raise ValueError("El archivo no contiene preguntas válidas")
+
     for cat in cats_in_csv:
         clues = []
         for val in values_per_category:
@@ -450,7 +461,8 @@ def load_from_csv_sampled(
             if fresh:
                 pick = random.choice(fresh)
             elif pool:
-                raise ValueError("No hay suficientes preguntas para otra ronda")
+                pick = random.choice(pool)
+                pick = {**pick, "reused": True}
             else:
                 pick = {
                     "idpregunta": None,
@@ -462,15 +474,28 @@ def load_from_csv_sampled(
                     "unavailable": True
                 }
                 
-            clues.append({
+            clue_payload = {
                 "value": pick["value"],
                 "question": pick["question"],
                 "choices": pick["choices"],
                 "answer": pick["answer"],
-                **({"unavailable": True} if pick.get("unavailable") else {})
-            })
-            
-            if not pick.get("unavailable") and any(pick["choices"]) and pick.get("idpregunta") is not None:
+            }
+
+            if pick.get("unavailable"):
+                clue_payload["unavailable"] = True
+            if pick.get("reused"):
+                clue_payload["reused"] = True
+
+            clues.append(clue_payload)
+
+            already_used = pick.get("idpregunta") in used_ids
+
+            if (
+                not pick.get("unavailable")
+                and not already_used
+                and any(pick["choices"])
+                and pick.get("idpregunta") is not None
+            ):
                 used_rows_to_append.append({
                     "idpregunta": pick["idpregunta"],
                     "category": pick["category"],
@@ -482,8 +507,175 @@ def load_from_csv_sampled(
                 used_ids.add(pick["idpregunta"])
                 
         categories[cat] = {"name": cat, "clues": clues}
-        
+
     if used_rows_to_append:
         _append_used_rows(used_csv_path, used_rows_to_append)
-        
+
     return {"categories": [categories[c] for c in sorted(categories.keys())]}
+
+
+def _read_question_rows(path: str) -> Iterable[Dict[str, str]]:
+    """Lee el archivo de preguntas ya sea CSV o XLSX y normaliza claves."""
+    raw_rows: List[Dict[str, str]]
+    if zipfile.is_zipfile(path):
+        raw_rows = _read_xlsx_rows(path)
+    else:
+        raw_rows = _read_csv_rows(path)
+
+    for row in raw_rows:
+        normalized: Dict[str, str] = {}
+        for key, value in row.items():
+            if key is None:
+                continue
+            key_norm = str(key).strip().lower()
+            if not key_norm:
+                continue
+            value_norm = value.strip() if isinstance(value, str) else value
+            target_key = COLUMN_ALIASES.get(key_norm, key_norm)
+            normalized[target_key] = value_norm
+        if normalized:
+            yield normalized
+
+
+COLUMN_ALIASES = {
+    "id": "idpregunta",
+    "id_pregunta": "idpregunta",
+    "idpregunta": "idpregunta",
+    "categoria": "category",
+    "categoría": "category",
+    "category": "category",
+    "valor": "value",
+    "value": "value",
+    "pregunta": "question",
+    "question": "question",
+    "opcion_a": "choice_a",
+    "opción_a": "choice_a",
+    "choice_a": "choice_a",
+    "opcion_b": "choice_b",
+    "opción_b": "choice_b",
+    "choice_b": "choice_b",
+    "opcion_c": "choice_c",
+    "opción_c": "choice_c",
+    "choice_c": "choice_c",
+    "opcion_d": "choice_d",
+    "opción_d": "choice_d",
+    "choice_d": "choice_d",
+    "respuesta": "answer",
+    "answer": "answer",
+}
+
+
+def _read_csv_rows(path: str) -> List[Dict[str, str]]:
+    encodings_to_try = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    last_error: Optional[UnicodeDecodeError] = None
+
+    for enc in encodings_to_try:
+        try:
+            with open(path, "r", encoding=enc, newline="") as f:
+                sample = f.read(4096)
+                f.seek(0)
+                try:
+                    dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+                except csv.Error:
+                    dialect = csv.excel
+
+                reader = csv.DictReader(f, dialect=dialect)
+                rows: List[Dict[str, str]] = []
+                for row in reader:
+                    if row is None:
+                        continue
+                    rows.append(row)
+                return rows
+        except UnicodeDecodeError as e:
+            last_error = e
+            continue
+
+    if last_error is not None:
+        raise last_error
+
+    return []
+
+
+def _read_xlsx_rows(path: str) -> List[Dict[str, str]]:
+    ns = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    rows: List[List[str]] = []
+
+    with zipfile.ZipFile(path) as zf:
+        shared_strings: List[str] = []
+        if "xl/sharedStrings.xml" in zf.namelist():
+            root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+            for si in root.findall("a:si", ns):
+                text_parts = [t.text or "" for t in si.findall(".//a:t", ns)]
+                shared_strings.append("".join(text_parts))
+
+        sheet_name = next((n for n in zf.namelist() if n.startswith("xl/worksheets/sheet")), None)
+        if sheet_name is None:
+            return []
+
+        sheet_root = ET.fromstring(zf.read(sheet_name))
+        sheet_data = sheet_root.find("a:sheetData", ns)
+        if sheet_data is None:
+            return []
+
+        for row in sheet_data.findall("a:row", ns):
+            values: List[str] = []
+            for cell in row.findall("a:c", ns):
+                ref = cell.attrib.get("r", "")
+                col_idx = _column_index_from_ref(ref)
+
+                while len(values) < col_idx:
+                    values.append("")
+
+                text_value = ""
+                cell_type = cell.attrib.get("t")
+                value_elem = cell.find("a:v", ns)
+
+                if cell_type == "s" and value_elem is not None:
+                    try:
+                        idx = int(value_elem.text or "0")
+                    except ValueError:
+                        idx = 0
+                    if 0 <= idx < len(shared_strings):
+                        text_value = shared_strings[idx]
+                elif cell_type == "inlineStr":
+                    inline = cell.find("a:is", ns)
+                    if inline is not None:
+                        text_value = "".join(t.text or "" for t in inline.findall(".//a:t", ns))
+                elif value_elem is not None and value_elem.text is not None:
+                    text_value = value_elem.text
+
+                values.append(text_value)
+
+            rows.append(values)
+
+    if not rows:
+        return []
+
+    max_len = max(len(r) for r in rows)
+    normalized_rows = [r + [""] * (max_len - len(r)) for r in rows]
+
+    header = [str(cell or "").strip().lower() for cell in normalized_rows[0]]
+    data_rows = []
+    for data in normalized_rows[1:]:
+        if all(not str(cell).strip() for cell in data):
+            continue
+        row_dict: Dict[str, str] = {}
+        for idx, key in enumerate(header):
+            if not key:
+                continue
+            value = data[idx]
+            row_dict[key] = value.strip() if isinstance(value, str) else value
+        data_rows.append(row_dict)
+
+    return data_rows
+
+
+def _column_index_from_ref(ref: str) -> int:
+    col_letters = "".join(ch for ch in ref if ch.isalpha()).upper()
+    if not col_letters:
+        return len(ref)
+
+    idx = 0
+    for ch in col_letters:
+        idx = idx * 26 + (ord(ch) - 64)
+    return max(idx - 1, 0)
