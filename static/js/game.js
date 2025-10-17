@@ -29,6 +29,16 @@ const elements = {
     hideAnswersCheckbox: document.getElementById('hide-answers')
 };
 
+// Algunos templates antiguos incluían múltiples instancias del menú contextual de
+// puntajes. Si detectamos copias extra, las eliminamos para evitar que se
+// muestre un segundo menú.
+const scoreMenus = document.querySelectorAll('#score-menu');
+scoreMenus.forEach((menuEl, idx) => {
+    if (idx > 0) {
+        menuEl.remove();
+    }
+});
+
 // Sonidos
 const sounds = {
     buzz: new Audio('/sounds/boton_presionado2.wav'),
@@ -733,6 +743,23 @@ document.addEventListener('keydown', (e) => {
             closeScoreMenu();
         }
     }
+});
+
+// Cerrar menú al hacer clic fuera de él
+document.addEventListener('click', (event) => {
+    const menu = document.getElementById('score-menu');
+
+    // Salir si el menú no está visible
+    if (!menu || menu.style.display !== 'block') {
+        return;
+    }
+
+    // Ignorar clics dentro del menú contextual
+    if (menu.contains(event.target)) {
+        return;
+    }
+
+    closeScoreMenu();
 });
 
 function closeScoreMenu() {
