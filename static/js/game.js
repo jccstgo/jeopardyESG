@@ -1154,9 +1154,17 @@ document.addEventListener('keydown', (e) => {
         return;
     }
     
+    // Escape para cancelar
+    if (e.key === 'Escape') {
+        if (gameState.currentQuestion) {
+            cancelQuestion();
+        }
+        return;
+    }
+
     // Solo si hay pregunta activa y respuestas visibles
     if (!gameState.currentQuestion || gameState.hideAnswers) return;
-    
+
     // Letras a-d para seleccionar respuestas
     const key = e.key.toLowerCase();
     if ('abcd'.includes(key)) {
@@ -1164,16 +1172,10 @@ document.addEventListener('keydown', (e) => {
         selectChoice(index);
         return;
     }
-    
+
     // Enter para enviar respuesta
     if (e.key === 'Enter') {
         submitAnswer();
-        return;
-    }
-    
-    // Escape para cancelar
-    if (e.key === 'Escape') {
-        cancelQuestion();
         return;
     }
 });
