@@ -305,7 +305,12 @@ function renderBoard(data) {
     updateControlsMode();
 
     updateMosaicLayout(layout);
-    applyMosaicToBoard();
+
+    if (mosaicState.enabled) {
+        requestAnimationFrame(() => applyMosaicToBoard());
+    } else {
+        applyMosaicToBoard();
+    }
 }
 
 function computeBoardLayout(categories) {
@@ -1448,9 +1453,6 @@ function revealMosaicPiece(catIdx, clueIdx) {
 function markMosaicPieceRevealed(catIdx, clueIdx) {
     if (!mosaicState.enabled) return false;
 
-    const displayRow = getDisplayRowIndex(clueIdx);
-    if (displayRow === null) return false;
-
     if (!mosaicState.revealedPiecesSet) {
         mosaicState.revealedPiecesSet = new Set();
     }
@@ -1458,6 +1460,17 @@ function markMosaicPieceRevealed(catIdx, clueIdx) {
     const key = `${catIdx}-${clueIdx}`;
     if (mosaicState.revealedPiecesSet.has(key)) {
         return false;
+    }
+
+    // Verificar si el índice tiene una fila visible en el layout actual
+    if (getDisplayRowIndex(clueIdx) === null) {
+        const fallbackCell = document.querySelector(
+            `.board-cell.clue[data-cat-idx="${catIdx}"][data-clue-idx="${clueIdx}"]`
+        );
+
+        if (!fallbackCell || Number.isNaN(parseInt(fallbackCell.dataset.displayRow, 10))) {
+            return false;
+        }
     }
 
     mosaicState.revealedPiecesSet.add(key);
@@ -1484,14 +1497,17 @@ function applyMosaicToBoard() {
         }
 
         const key = `${catIdx}-${clueIdx}`;
-        const isRevealed = mosaicState.revealedPiecesSet?.has(key);
+        let isRevealed = mosaicState.revealedPiecesSet?.has(key);
         const cellConsumed = cell.classList.contains('used') || cell.classList.contains('correct');
 
         if (cellConsumed) {
-            markMosaicPieceRevealed(catIdx, clueIdx);
+            const newlyRevealed = markMosaicPieceRevealed(catIdx, clueIdx);
+            if (newlyRevealed) {
+                isRevealed = true;
+            }
         }
 
-        if (isRevealed || cellConsumed) {
+        if (isRevealed) {
             applyMosaicToCellElement(cell, catIdx, clueIdx, displayRow);
         } else {
             clearMosaicFromCell(cell);
@@ -1585,10 +1601,24 @@ function recalculateMosaicProgress(layoutOverride) {
 
     let count = 0;
     mosaicState.revealedPiecesSet.forEach(key => {
-        const [, clueIdxStr] = key.split('-');
+        const [catIdxStr, clueIdxStr] = key.split('-');
         const clueIdx = parseInt(clueIdxStr, 10);
+
         if (getDisplayRowIndex(clueIdx, layoutRef) !== null) {
             count += 1;
+            return;
+        }
+
+        const catIdx = parseInt(catIdxStr, 10);
+        const fallbackCell = document.querySelector(
+            `.board-cell.clue[data-cat-idx="${catIdx}"][data-clue-idx="${clueIdx}"]`
+        );
+
+        if (fallbackCell) {
+            const fallbackRow = parseInt(fallbackCell.dataset.displayRow, 10);
+            if (!Number.isNaN(fallbackRow)) {
+                count += 1;
+            }
         }
     });
 
