@@ -1444,7 +1444,6 @@ function revealMosaicPiece(catIdx, clueIdx) {
         setStatus('¡Mosaico completado!', 'correct');
         createConfetti();
     }
-}
 
 function markMosaicPieceRevealed(catIdx, clueIdx) {
     if (!mosaicState.enabled) return false;
