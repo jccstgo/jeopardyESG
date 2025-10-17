@@ -280,12 +280,31 @@ def handle_set_score(data):
     """Establece el puntaje de un jugador directamente"""
     player_idx = data.get('player')
     score = data.get('score', 0)
-    
+
     result = game.set_score(player_idx, score)
-    
+
     if 'error' in result:
         emit('error', result, broadcast=False)
     else:
+        emit('scores_update', {'scores': game.player_scores}, broadcast=True)
+
+@socketio.on('set_team_count')
+def handle_set_team_count(data):
+    """Configura la cantidad de equipos disponibles"""
+    count = data.get('count')
+
+    result = game.set_player_count(count)
+
+    if 'error' in result:
+        emit('error', result, broadcast=False)
+    else:
+        emit('team_count_updated', {
+            'player_count': result['player_count'],
+            'scores': game.player_scores,
+            'current_buzzer': result.get('current_buzzer'),
+            'tried_players': result.get('tried_players', []),
+            'timer_active': result.get('timer_active', False)
+        }, broadcast=True)
         emit('scores_update', {'scores': game.player_scores}, broadcast=True)
 
 @socketio.on('disconnect')
@@ -332,7 +351,8 @@ if __name__ == '__main__':
     print("📍 URL: http://localhost:5000")
     print("📍 Red local: http://[tu-ip]:5000")
     print("\n🎯 Controles:")
-    print("   - Teclado 1-5: Buzzers de equipos")
+    print("   - Teclado 1-9: Buzzers de equipos 1 al 9")
+    print("   - Tecla 0: Buzzer del equipo 10")
     print("   - Teclado A-D: Seleccionar respuestas")
     print("   - Enter: Confirmar respuesta")
     print("   - Escape: Cancelar")

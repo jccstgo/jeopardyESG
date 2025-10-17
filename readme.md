@@ -57,7 +57,8 @@ Verás algo como:
 📍 Red local: http://192.168.1.X:5000
 
 🎯 Controles:
-   - Teclado 1-5: Buzzers de equipos
+   - Teclado 1-9: Buzzers de los equipos 1 al 9
+   - Tecla 0: Buzzer del equipo 10
    - Teclado A-D: Seleccionar respuestas
    - Enter: Confirmar respuesta
    - Escape: Cancelar
@@ -78,12 +79,12 @@ Verás algo como:
 
 ### ✅ Implementadas
 
-- ✅ **5 equipos** con buzzers independientes
+- ✅ **Hasta 10 equipos configurables** con buzzers independientes
 - ✅ **Temporizador** de 10 segundos con cuenta regresiva
 - ✅ **Sistema de rebote**: Si un equipo falla, otros pueden intentar
 - ✅ **Modo moderador**: Ocultar respuestas para validación manual
 - ✅ **Efectos de sonido** para eventos del juego
-- ✅ **Atajos de teclado** (1-5 buzzers, A-D respuestas, Enter/Esc)
+- ✅ **Atajos de teclado** (1-9 y 0 para buzzers, A-D respuestas, Enter/Esc)
 - ✅ **Gestión de puntajes**: Ajuste manual con menú contextual (clic derecho)
 - ✅ **Carga de preguntas**: JSON o CSV con sistema de "usadas"
 - ✅ **Tiempo real**: WebSockets para sincronización instantánea
@@ -104,7 +105,7 @@ Verás algo como:
 ### Flujo del Juego
 
 1. **Seleccionar pregunta**: Clic en una casilla del tablero
-2. **Presionar buzzer**: Jugador presiona su botón (o tecla 1-5)
+2. **Presionar buzzer**: Jugador presiona su botón (o teclas 1-9 / 0)
 3. **Responder**: 
    - Si respuestas visibles: Seleccionar opción (A-D) y Enter
    - Si respuestas ocultas: Moderador valida con botones Correcto/Incorrecto
@@ -117,7 +118,7 @@ Verás algo como:
 
 | Tecla | Acción |
 |-------|--------|
-| `1` - `5` | Buzzer de equipos |
+| `1` - `9`, `0` | Buzzer de equipos |
 | `A` - `D` | Seleccionar respuesta |
 | `Enter` | Confirmar respuesta |
 | `Escape` | Cancelar pregunta |
