@@ -82,7 +82,7 @@ body {
 
 #players-bar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 16px;
     margin-bottom: 16px;
 }
@@ -93,12 +93,6 @@ body {
     gap: 10px;
     animation: slideDown 0.5s ease backwards;
 }
-
-.player:nth-child(1) { animation-delay: 0.1s; }
-.player:nth-child(2) { animation-delay: 0.2s; }
-.player:nth-child(3) { animation-delay: 0.3s; }
-.player:nth-child(4) { animation-delay: 0.4s; }
-.player:nth-child(5) { animation-delay: 0.5s; }
 
 @keyframes slideDown {
     from {
@@ -275,6 +269,12 @@ body {
 }
 
 .quick-adjust-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#quick-adjust-players {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
@@ -898,6 +898,72 @@ button:active {
 .checkbox-container span {
     color: var(--white);
     font-weight: 500;
+}
+
+.team-count-control {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--white);
+    font-size: 14px;
+    margin-right: 20px;
+}
+
+.team-count-control label {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.team-count-select-wrapper {
+    position: relative;
+    min-width: 160px;
+    background: linear-gradient(135deg, rgba(30, 58, 95, 0.95) 0%, rgba(10, 25, 41, 0.95) 100%);
+    border: 2px solid rgba(255, 215, 0, 0.6);
+    border-radius: 12px;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.45),
+        0 0 40px rgba(33, 150, 243, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+.team-count-select-wrapper::after {
+    content: '\25BC';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent-gold);
+    pointer-events: none;
+    font-size: 12px;
+}
+
+.team-count-control select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 100%;
+    padding: 12px 48px 12px 18px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--white);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.team-count-control select:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.4);
+}
+
+.team-count-control select option {
+    background: #0a1929;
+    color: var(--white);
+    font-weight: 600;
 }
 
 /* ===========================
