@@ -313,6 +313,10 @@ if __name__ == '__main__':
     os.makedirs('static/css', exist_ok=True)
     os.makedirs('static/js', exist_ok=True)
     os.makedirs('templates', exist_ok=True)
+    @app.route('/api/images-folder')
+    def get_images_folder():
+        """Obtiene la carpeta de imágenes actual"""
+        return jsonify({"images_folder": game.images_folder})
     
     print("\n" + "="*50)
     print("🎮 JEOPARDY WEB - Servidor Iniciado")

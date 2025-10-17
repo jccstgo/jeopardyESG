@@ -538,7 +538,371 @@ Logs útiles en la consola del servidor:
 Error sirviendo imagen historia_visual/imagen.jpg: [descripción del error]
 
 ¡Ahora tus preguntas pueden ser mucho más visuales e interactivas! 🎨📸
+---
+🧩 Sistema de Mosaico Revelador
+¿Qué es?
+El mosaico es una imagen oculta que se revela progresivamente conforme los equipos responden correctamente las preguntas. Cada pregunta correcta descubre una pieza del mosaico, creando una experiencia visual emocionante.
+📁 Configuración
+1. Preparar la Imagen del Mosaico
+Dentro de tu carpeta de imágenes, agrega un archivo llamado MOSAICO.jpg o MOSAICO.png:
+data/
+├── question.csv
+└── question/
+    ├── imagen1.jpg
+    ├── imagen2.png
+    └── MOSAICO.jpg    ← Imagen que se revelará
+Requisitos de la imagen:
 
+Nombre: Exactamente MOSAICO.jpg o MOSAICO.png (en mayúsculas)
+Tamaño recomendado: 1000x1000px (cuadrada)
+Formato: JPG o PNG
+Contenido: Imagen completa que se dividirá automáticamente
+
+2. Estructura Completa
+jeopardy-web/
+├── data/
+│   ├── question.csv           # Tu archivo de preguntas
+│   └── question/              # Carpeta con imágenes
+│       ├── pregunta1.jpg      # Imágenes de preguntas
+│       ├── pregunta2.jpg
+│       ├── pregunta3.png
+│       └── MOSAICO.jpg        # ⭐ Imagen del mosaico
+🎮 Funcionamiento
+Automático
+
+Al cargar el juego:
+
+El sistema busca automáticamente MOSAICO.jpg o MOSAICO.png
+Si existe, divide la imagen según el tablero (categorías × preguntas)
+Muestra el mosaico en la esquina con todas las piezas ocultas
+
+
+Durante el juego:
+
+Cada pregunta respondida correctamente revela su pieza correspondiente
+El mosaico muestra el progreso: "X / Total piezas"
+Las piezas se revelan con animación
+
+
+Al completar:
+
+Cuando todas las preguntas son respondidas correctamente
+El mosaico se expande al centro de la pantalla
+Muestra la imagen completa con efectos especiales
+Mensaje: "🎉 ¡Mosaico Completo! 🎉"
+
+
+
+División del Mosaico
+El mosaico se divide automáticamente según tu tablero:
+
+4 categorías × 5 preguntas = 20 piezas (4 columnas × 5 filas)
+5 categorías × 4 preguntas = 20 piezas (5 columnas × 4 filas)
+6 categorías × 5 preguntas = 30 piezas (6 columnas × 5 filas)
+
+Ejemplo con 4 categorías y 5 preguntas:
+┌─────┬─────┬─────┬─────┐
+│ P1  │ P2  │ P3  │ P4  │  100pts
+├─────┼─────┼─────┼─────┤
+│ P5  │ P6  │ P7  │ P8  │  200pts
+├─────┼─────┼─────┼─────┤
+│ P9  │ P10 │ P11 │ P12 │  300pts
+├─────┼─────┼─────┼─────┤
+│ P13 │ P14 │ P15 │ P16 │  400pts
+├─────┼─────┼─────┼─────┤
+│ P17 │ P18 │ P19 │ P20 │  500pts
+└─────┴─────┴─────┴─────┘
+🎨 Recomendaciones de Diseño
+Imágenes Ideales para Mosaico
+✅ Buenas opciones:
+
+Logos o escudos grandes y reconocibles
+Banderas
+Monumentos icónicos
+Personajes históricos
+Mapas
+Símbolos institucionales
+Arte con elementos claramente distinguibles
+
+❌ Evitar:
+
+Imágenes con mucho detalle fino
+Fotos con muchos elementos pequeños
+Gradientes sutiles
+Texto pequeño que se divida
+
+Ejemplo de Uso Temático
+Historia Militar:
+
+Mosaico: Escudo de la institución
+Preguntas sobre batallas, estrategias, personajes
+
+Geografía:
+
+Mosaico: Mapa del país
+Preguntas sobre capitales, regiones, características
+
+Cultura General:
+
+Mosaico: Monumento emblemático
+Preguntas variadas de conocimiento
+
+🖼️ Preparar la Imagen
+Opción 1: Imagen Simple
+Simplemente usa cualquier imagen cuadrada:
+bash# Redimensionar a tamaño óptimo
+convert mi_imagen.jpg -resize 1000x1000 MOSAICO.jpg
+Opción 2: Con Marco/Borde
+Para hacerla más vistosa:
+bash# Agregar marco dorado
+convert mi_imagen.jpg -resize 950x950 \
+  -bordercolor gold -border 25 \
+  MOSAICO.jpg
+Opción 3: Desde Herramienta Gráfica
+
+Abre tu imagen en Photoshop/GIMP/Paint.NET
+Recorta o redimensiona a cuadrado (1000×1000px)
+Opcional: Agrega efectos, marcos o texto
+Guarda como MOSAICO.jpg
+Coloca en la carpeta correspondiente
+
+🔧 Solución de Problemas
+El mosaico no aparece
+Verificar:
+
+Nombre del archivo correcto:
+
+bash   # Debe ser exactamente (mayúsculas):
+   MOSAICO.jpg  ✅
+   mosaico.jpg  ❌
+   Mosaico.jpg  ❌
+   MOSAICO.png  ✅
+
+Ubicación correcta:
+
+bash   ls data/question/MOSAICO.jpg
+   # Debe existir
+
+Permisos de lectura:
+
+bash   chmod 644 data/question/MOSAICO.jpg
+
+Consola del navegador (F12):
+
+   🎨 Mosaico encontrado: /images/question/MOSAICO.jpg  ✅
+   ⚠️ No se encontró imagen MOSAICO                      ❌
+Las piezas no se revelan
+Causas posibles:
+
+Las preguntas no se están respondiendo correctamente
+Error en JavaScript - revisar consola del navegador (F12)
+
+Solución:
+javascript// En la consola del navegador, verificar:
+console.log(mosaicState);
+// Debe mostrar: enabled: true, revealedPieces: X
+El mosaico se ve distorsionado
+Solución:
+
+Usa una imagen cuadrada (mismo ancho y alto)
+Tamaño recomendado: 1000x1000px
+Formato: JPG o PNG
+
+El mosaico aparece muy pequeño/grande
+Ajustar en CSS:
+css/* En style.css, modificar: */
+#mosaic-container {
+    width: 400px;  /* Ajusta según preferencia */
+    height: 400px;
+}
+🎯 Casos de Uso
+Caso 1: Competencia de Historia
+Mosaico: Escudo de la Escuela Superior de Guerra
+data/
+├── historia_militar.csv
+└── historia_militar/
+    ├── batalla_ayacucho.jpg
+    ├── simon_bolivar.jpg
+    └── MOSAICO.jpg  ← Escudo institucional
+Efecto: Los equipos compiten por revelar el escudo completo
+Caso 2: Geografía Nacional
+Mosaico: Mapa del país con división política
+data/
+├── geografia.csv
+└── geografia/
+    ├── region_norte.png
+    ├── region_sur.png
+    └── MOSAICO.jpg  ← Mapa completo
+Efecto: Se va revelando el mapa conforme responden
+Caso 3: Conocimiento General
+Mosaico: Logo del evento o competencia
+data/
+├── quiz_2025.csv
+└── quiz_2025/
+    ├── pregunta1.jpg
+    └── MOSAICO.jpg  ← Logo del evento
+Efecto: Revela el logo al finalizar la competencia
+📊 Estadísticas y Progreso
+El sistema muestra automáticamente:
+
+Contador visible: "X / Total" piezas reveladas
+Ubicación: Sobre el mosaico en todo momento
+Actualización: En tiempo real con cada respuesta correcta
+
+🎨 Personalización Avanzada
+Cambiar Posición del Mosaico
+css/* En style.css, modificar #mosaic-container: */
+#mosaic-container {
+    top: 20px;      /* Posición vertical */
+    left: 20px;     /* Posición horizontal */
+    right: auto;    /* Desactivar centrado */
+    transform: none;
+}
+Cambiar Tamaño al Completar
+css#mosaic-container.complete {
+    width: 800px;   /* Más grande */
+    height: 800px;
+}
+Desactivar Animaciones
+css.mosaic-piece.revealed {
+    animation: none;  /* Sin animación al revelar */
+}
+🚀 Mejores Prácticas
+
+Prueba primero:
+
+Carga el juego con pocas preguntas (2×2)
+Verifica que el mosaico aparezca
+Responde una pregunta para probar la revelación
+
+
+Optimiza la imagen:
+
+No más de 500KB de peso
+Usa JPG para fotos, PNG para logos/ilustraciones
+Comprime con herramientas como TinyPNG
+
+
+Diseña pensando en la división:
+
+Elementos importantes no deben quedar en bordes de piezas
+Usa diseños centralizados o simétricos
+Considera cómo se verá dividida
+
+
+Temática coherente:
+
+El mosaico debe relacionarse con las preguntas
+Genera expectativa e interés
+Recompensa visual al completar
+
+
+
+💡 Ideas Creativas
+Mosaico Motivacional
+Imagen: Frase inspiradora o logro desbloqueado
+
+"¡MISIÓN CUMPLIDA!"
+"EXPERTOS EN [TEMA]"
+Trofeo o medalla personalizada
+
+Mosaico Sorpresa
+No revelar qué imagen es:
+
+Genera intriga durante el juego
+Momento de revelación emocionante
+Puede ser un premio, anuncio o mensaje
+
+Mosaico por Equipos
+Diferentes mosaicos según quien gane:
+
+(Requiere modificación adicional)
+Mostrar logo del equipo ganador
+
+🔄 Resetear Mosaico
+El mosaico se resetea automáticamente cuando:
+
+Se reinicia el juego (botón "🔄 Reiniciar")
+Se carga un nuevo archivo CSV
+Se recarga la página
+
+📱 Compatibilidad
+
+✅ Desktop: Experiencia completa
+✅ Tablet: Mosaico responsive
+✅ Móvil: Se ajusta automáticamente
+✅ Proyector: Visible desde lejos
+
+🎓 Ejemplo Completo Paso a Paso
+Paso 1: Preparar el CSV
+Archivo: data/historia_esc.csv
+csvidpregunta,category,value,question,choice_a,choice_b,choice_c,choice_d,answer,imagen,nombre_imagen
+1,Batallas,100,¿Batalla de la imagen?,Ayacucho,Junín,Pichincha,Maipú,a,si,ayacucho.jpg
+2,Batallas,200,¿Año de esta batalla?,1824,1821,1822,1820,a,si,batalla2.jpg
+Paso 2: Crear Carpeta
+bashmkdir data/historia_esc
+Paso 3: Agregar Imágenes
+bash# Copiar imágenes de preguntas
+cp imagenes/ayacucho.jpg data/historia_esc/
+cp imagenes/batalla2.jpg data/historia_esc/
+
+# Copiar imagen del mosaico (escudo)
+cp imagenes/escudo_escuela.jpg data/historia_esc/MOSAICO.jpg
+Paso 4: Verificar Estructura
+bashtree data/
+# data/
+# ├── historia_esc.csv
+# └── historia_esc/
+#     ├── ayacucho.jpg
+#     ├── batalla2.jpg
+#     └── MOSAICO.jpg
+
+# Verificar tamaño de imagen
+file data/historia_esc/MOSAICO.jpg
+# Debe mostrar dimensiones cuadradas
+Paso 5: Cargar y Jugar
+
+Iniciar servidor: python app.py
+Abrir: http://localhost:5000
+Cargar: historia_esc.csv
+Verificar en consola:
+
+   📁 Carpeta de imágenes configurada: data/historia_esc
+   🎨 Mosaico encontrado: /images/historia_esc/MOSAICO.jpg
+   🎨 Mosaico creado: { rows: 5, cols: 4 }
+
+¡Jugar y ver el mosaico revelarse!
+
+🎉 Efectos Especiales
+Al completar el mosaico:
+
+🎆 Confetti animado
+🔊 Sonido de victoria
+✨ Brillo pulsante dorado
+📢 Mensaje de felicitación
+🎯 Expansión del mosaico al centro
+
+❓ Preguntas Frecuentes
+¿Puedo usar GIF animado?
+
+Sí, pero se pausará la animación al dividirse en piezas
+
+¿Funciona con cualquier número de categorías/preguntas?
+
+Sí, se adapta automáticamente a cualquier configuración
+
+¿Se puede desactivar el mosaico?
+
+Sí, simplemente no incluyas el archivo MOSAICO.jpg
+
+¿Puedo tener múltiples mosaicos?
+
+Actualmente solo uno por archivo CSV, pero puedes cambiar de CSV
+
+¿El mosaico se guarda entre sesiones?
+
+No, se resetea al recargar. Es parte de la dinámica del juego
+---
 ## 📝 TODO / Mejoras Futuras
 
 - [ ] Subida de archivos CSV/JSON desde la interfaz
