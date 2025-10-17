@@ -8,6 +8,7 @@ from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit
 import game_logic
 import os
+import tempfile
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'jeopardy_secret_2025'
@@ -38,11 +39,37 @@ def get_game_state():
 @app.route('/api/load-data', methods=['POST'])
 def load_data():
     """Carga datos desde JSON o CSV"""
-    data = request.get_json()
-    file_type = data.get('type', 'json')
-    file_path = data.get('path', '')
-    
+    uploaded_path = None
+    original_name = None
+
     try:
+        if request.files:
+            uploaded_file = request.files.get('file')
+            if not uploaded_file or uploaded_file.filename == '':
+                return jsonify({"error": "No se recibió archivo"}), 400
+
+            original_name = uploaded_file.filename
+            _, ext = os.path.splitext(original_name)
+            ext = ext.lower()
+
+            if ext not in ('.json', '.csv'):
+                return jsonify({"error": "Formato no soportado"}), 400
+
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+            uploaded_file.save(temp_file.name)
+            temp_file.close()
+
+            uploaded_path = temp_file.name
+            file_type = 'csv' if ext == '.csv' else 'json'
+            file_path = uploaded_path
+        else:
+            data = request.get_json(silent=True) or {}
+            file_type = data.get('type', 'json')
+            file_path = data.get('path', '')
+
+            if not file_path:
+                return jsonify({"error": "No se especificó archivo"}), 400
+
         if file_type == 'csv':
             game.data = game_logic.load_from_csv_sampled(
                 file_path,
@@ -50,15 +77,23 @@ def load_data():
             )
         else:
             game.data = game_logic.load_data(file_path)
-            
+
         game.reset_game()
-        
+
         # Notificar a todos los clientes
         socketio.emit('game_reset', game.get_board_state())
-        
-        return jsonify({"success": True, "message": "Datos cargados correctamente"})
+
+        display_name = original_name or os.path.basename(file_path)
+        message = f"Datos cargados correctamente desde {display_name}"
+        return jsonify({"success": True, "message": message})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+    finally:
+        if uploaded_path and os.path.exists(uploaded_path):
+            try:
+                os.remove(uploaded_path)
+            except OSError:
+                pass
 
 @app.route('/api/reset', methods=['POST'])
 def reset_game():
