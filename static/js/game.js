@@ -745,22 +745,24 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Cerrar menú al hacer clic fuera de él
-document.addEventListener('click', (event) => {
+function handleGlobalMenuClose(event) {
     const menu = document.getElementById('score-menu');
 
-    // Salir si el menú no está visible
     if (!menu || menu.style.display !== 'block') {
         return;
     }
 
-    // Ignorar clics dentro del menú contextual
+    // Mantener el menú abierto si el punto de interacción está dentro de él.
     if (menu.contains(event.target)) {
         return;
     }
 
     closeScoreMenu();
-});
+}
+
+// Detectar interacciones con mouse, táctil o stylus fuera del menú.
+document.addEventListener('pointerdown', handleGlobalMenuClose, true);
+document.addEventListener('click', handleGlobalMenuClose);
 
 function closeScoreMenu() {
     const menu = document.getElementById('score-menu');
