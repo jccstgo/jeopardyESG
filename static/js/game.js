@@ -8,6 +8,7 @@ const gameState = {
     currentBuzzer: null,
     hideAnswers: false,
     selectedAnswer: -1,
+    answerPending: false,
     triedPlayers: new Set(),
     timerInterval: null,
     contextMenuPlayer: null
@@ -76,6 +77,7 @@ socket.on('question_opened', (data) => {
     console.log('❓ Pregunta abierta:', data);
     gameState.currentQuestion = data;
     gameState.selectedAnswer = -1;
+    gameState.answerPending = false;
     gameState.triedPlayers = new Set();
     
     // Ocultar panel de ajuste si está visible
@@ -115,7 +117,8 @@ socket.on('stop_timer', () => {
 
 socket.on('answer_result', (data) => {
     console.log('📝 Resultado:', data);
-    
+    gameState.answerPending = false;
+
     if (data.result === 'correct') {
         playSound('correct');
         flashStatus('correct', 'CORRECTO', '¡Correcto! Elige otra casilla.');
@@ -129,6 +132,7 @@ socket.on('answer_result', (data) => {
             updateBuzzerButtons();
             enableChoices(false);
             gameState.selectedAnswer = -1;
+            gameState.answerPending = false;
         } else {
             flashStatus('incorrect', 'INCORRECTO', 'Sin intentos restantes. Elige otra casilla.');
         }
@@ -148,6 +152,7 @@ socket.on('close_question', () => {
     gameState.currentBuzzer = null;
     gameState.triedPlayers.clear();
     gameState.selectedAnswer = -1;
+    gameState.answerPending = false;
     
     // Asegurar que los controles vuelvan al modo tablero
     updateControlsMode();
@@ -167,6 +172,7 @@ socket.on('game_reset', (data) => {
     gameState.currentBuzzer = null;
     gameState.selectedAnswer = -1;
     gameState.triedPlayers.clear();
+    gameState.answerPending = false;
     updateControlsMode();
     setStatus('Juego reiniciado. Selecciona una casilla.', 'info');
 });
@@ -342,6 +348,7 @@ function closeQuestionPanel() {
     // Limpiar estado
     gameState.currentQuestion = null;
     gameState.selectedAnswer = -1;
+    gameState.answerPending = false;
     
     // Restaurar controles del tablero
     updateControlsMode();
@@ -372,7 +379,7 @@ function selectChoice(index) {
     });
     
     // Mostrar en status
-    setStatus(`Opción ${String.fromCharCode(97 + index)} seleccionada. Presiona Enter para confirmar.`, 'info');
+    setStatus(`Opción ${String.fromCharCode(97 + index)} seleccionada. Se enviará automáticamente si el tiempo se agota.`, 'info');
 }
 
 function enableChoices(enable) {
@@ -422,25 +429,27 @@ function submitAnswer() {
     console.log('🚀 Intentando enviar respuesta...');
     console.log('   - Buzzer actual:', gameState.currentBuzzer);
     console.log('   - Respuesta seleccionada:', gameState.selectedAnswer);
-    
+
     if (gameState.currentBuzzer === null) {
         setStatus('Primero un jugador debe presionar su timbre', 'incorrect');
         console.error('❌ No hay jugador con turno activo');
         return;
     }
-    
+
     if (gameState.selectedAnswer < 0) {
         setStatus('Selecciona una opción antes de responder', 'incorrect');
         console.error('❌ No hay respuesta seleccionada (valor:', gameState.selectedAnswer, ')');
         return;
     }
-    
+
     console.log('📤 Enviando respuesta:');
     console.log('  - Jugador:', gameState.currentBuzzer);
     console.log('  - Respuesta seleccionada:', gameState.selectedAnswer);
     console.log('  - Pregunta actual:', gameState.currentQuestion);
     console.log('  - Respuesta correcta esperada:', gameState.currentQuestion?.answer);
-    
+
+    gameState.answerPending = true;
+
     socket.emit('submit_answer', {
         player: gameState.currentBuzzer,
         answer: gameState.selectedAnswer
@@ -611,7 +620,17 @@ function startTimer(seconds) {
         
         if (remaining <= 0) {
             stopTimer();
-            socket.emit('timeout');
+
+            if (!gameState.answerPending) {
+                if (gameState.currentBuzzer !== null && gameState.selectedAnswer >= 0) {
+                    console.log('⏰ Tiempo agotado: enviando respuesta seleccionada automáticamente');
+                    setStatus('Tiempo agotado. Respuesta enviada automáticamente.', 'info');
+                    submitAnswer();
+                } else {
+                    console.log('⏰ Tiempo agotado sin respuesta seleccionada. Notificando timeout.');
+                    socket.emit('timeout');
+                }
+            }
         }
     }, 1000);
     
