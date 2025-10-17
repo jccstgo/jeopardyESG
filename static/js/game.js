@@ -35,6 +35,304 @@ if (elements.fileInput) {
     elements.fileInput.addEventListener('change', handleFileSelection);
 }
 
+const mosaic = (() => {
+    const state = {
+        enabled: false,
+        imageUrl: null,
+        totalPieces: 0,
+        revealedPieces: 0,
+        grid: { rows: 0, cols: 0 },
+        revealedPiecesSet: new Set(),
+        layout: {
+            rowOrder: [],
+            displayIndexByOriginal: {},
+            cols: 0
+        }
+    };
+
+    function resetState() {
+        state.enabled = false;
+        state.imageUrl = null;
+        state.totalPieces = 0;
+        state.revealedPieces = 0;
+        state.revealedPiecesSet = new Set();
+        state.layout = { rowOrder: [], displayIndexByOriginal: {}, cols: 0 };
+    }
+
+    function getDisplayRowIndex(originalRow, layoutOverride) {
+        const layoutRef = layoutOverride || state.layout;
+        if (!layoutRef || !layoutRef.displayIndexByOriginal) return null;
+        const mapped = layoutRef.displayIndexByOriginal[originalRow];
+        return typeof mapped === 'number' ? mapped : null;
+    }
+
+    function recalculateProgress(layoutOverride) {
+        const layoutRef = layoutOverride || state.layout;
+        if (!state.revealedPiecesSet || !layoutRef) {
+            state.revealedPieces = 0;
+            return;
+        }
+
+        let count = 0;
+        state.revealedPiecesSet.forEach(key => {
+            const [catIdxStr, clueIdxStr] = key.split('-');
+            const clueIdx = parseInt(clueIdxStr, 10);
+
+            if (getDisplayRowIndex(clueIdx, layoutRef) !== null) {
+                count += 1;
+                return;
+            }
+
+            const catIdx = parseInt(catIdxStr, 10);
+            const fallbackCell = document.querySelector(
+                `.board-cell.clue[data-cat-idx="${catIdx}"][data-clue-idx="${clueIdx}"]`
+            );
+
+            if (fallbackCell) {
+                const fallbackRow = parseInt(fallbackCell.dataset.displayRow, 10);
+                if (!Number.isNaN(fallbackRow)) {
+                    count += 1;
+                }
+            }
+        });
+
+        state.revealedPieces = count;
+    }
+
+    function clearCell(cell) {
+        if (!cell) return;
+
+        cell.classList.remove('mosaic-visible');
+        cell.style.background = '';
+        cell.style.backgroundImage = '';
+        cell.style.backgroundPosition = '';
+        cell.style.backgroundSize = '';
+        cell.style.backgroundRepeat = '';
+        cell.style.color = '';
+
+        if (cell.dataset.value && cell.textContent.trim() === '') {
+            cell.textContent = cell.dataset.value;
+        }
+    }
+
+    function applyToCellElement(cell, catIdx, clueIdx, displayRow) {
+        if (!cell || !state.imageUrl) return;
+
+        const cols = Math.max(state.grid.cols, 1);
+        const rows = Math.max(state.grid.rows, 1);
+
+        const normalizedRow = Number.isNaN(displayRow)
+            ? getDisplayRowIndex(clueIdx)
+            : displayRow;
+
+        if (normalizedRow === null) {
+            clearCell(cell);
+            return;
+        }
+
+        const posX = cols > 1 ? (catIdx / (cols - 1)) * 100 : 50;
+        const posY = rows > 1 ? (normalizedRow / (rows - 1)) * 100 : 50;
+        const sizeW = cols * 100;
+        const sizeH = rows * 100;
+
+        cell.classList.add('mosaic-visible');
+        cell.style.background = 'none';
+        cell.style.backgroundImage = `url('${state.imageUrl}')`;
+        cell.style.backgroundPosition = `${posX}% ${posY}%`;
+        cell.style.backgroundSize = `${sizeW}% ${sizeH}%`;
+        cell.style.backgroundRepeat = 'no-repeat';
+        cell.style.color = 'transparent';
+
+        if (!cell.dataset.value && cell.textContent) {
+            cell.dataset.value = cell.textContent.trim();
+        }
+
+        if (cell.textContent.trim() !== '') {
+            cell.dataset.value = cell.textContent.trim();
+        }
+
+        cell.textContent = '';
+    }
+
+    function applyToBoard() {
+        const cells = document.querySelectorAll('.board-cell.clue');
+
+        if (!state.enabled || !state.imageUrl) {
+            cells.forEach(clearCell);
+            return;
+        }
+
+        cells.forEach(cell => {
+            const catIdx = parseInt(cell.dataset.catIdx, 10);
+            const clueIdx = parseInt(cell.dataset.clueIdx, 10);
+            const displayRow = parseInt(cell.dataset.displayRow, 10);
+
+            if (Number.isNaN(catIdx) || Number.isNaN(clueIdx)) {
+                clearCell(cell);
+                return;
+            }
+
+            const key = `${catIdx}-${clueIdx}`;
+            let isRevealed = state.revealedPiecesSet?.has(key);
+            const cellConsumed = cell.classList.contains('used') || cell.classList.contains('correct');
+
+            if (cellConsumed) {
+                const newlyRevealed = markPieceRevealed(catIdx, clueIdx);
+                if (newlyRevealed) {
+                    isRevealed = true;
+                }
+            }
+
+            if (isRevealed) {
+                applyToCellElement(cell, catIdx, clueIdx, displayRow);
+            } else {
+                clearCell(cell);
+            }
+        });
+    }
+
+    function markPieceRevealed(catIdx, clueIdx) {
+        if (!state.enabled) return false;
+
+        if (!state.revealedPiecesSet) {
+            state.revealedPiecesSet = new Set();
+        }
+
+        const key = `${catIdx}-${clueIdx}`;
+        if (state.revealedPiecesSet.has(key)) {
+            return false;
+        }
+
+        if (getDisplayRowIndex(clueIdx) === null) {
+            const fallbackCell = document.querySelector(
+                `.board-cell.clue[data-cat-idx="${catIdx}"][data-clue-idx="${clueIdx}"]`
+            );
+
+            if (!fallbackCell || Number.isNaN(parseInt(fallbackCell.dataset.displayRow, 10))) {
+                return false;
+            }
+        }
+
+        state.revealedPiecesSet.add(key);
+        recalculateProgress();
+        return true;
+    }
+
+    function revealPiece(catIdx, clueIdx) {
+        if (!state.enabled) return;
+
+        const newlyRevealed = markPieceRevealed(catIdx, clueIdx);
+
+        if (newlyRevealed) {
+            console.log(`🎨 Pieza revelada: ${state.revealedPieces}/${state.totalPieces}`);
+        }
+
+        applyToBoard();
+
+        if (
+            newlyRevealed &&
+            state.totalPieces > 0 &&
+            state.revealedPieces >= state.totalPieces
+        ) {
+            setStatus('¡Mosaico completado!', 'correct');
+            createConfetti();
+        }
+    }
+
+    function updateLayout(layout, options = {}) {
+        state.grid = {
+            rows: layout.rowOrder.length,
+            cols: layout.cols
+        };
+        state.layout = {
+            rowOrder: [...layout.rowOrder],
+            displayIndexByOriginal: { ...layout.displayIndexByOriginal },
+            cols: layout.cols
+        };
+
+        if (options.resetRevealed) {
+            state.revealedPiecesSet = new Set();
+        } else if (state.revealedPiecesSet) {
+            const filtered = new Set();
+            state.revealedPiecesSet.forEach(key => {
+                const [catIdxStr, clueIdxStr] = key.split('-');
+                const catIdx = parseInt(catIdxStr, 10);
+                const clueIdx = parseInt(clueIdxStr, 10);
+                if (Number.isNaN(catIdx) || Number.isNaN(clueIdx)) return;
+                if (catIdx >= layout.cols) return;
+                if (getDisplayRowIndex(clueIdx, layout) === null) return;
+                filtered.add(key);
+            });
+            state.revealedPiecesSet = filtered;
+        }
+
+        state.totalPieces = state.grid.rows * state.grid.cols;
+        recalculateProgress(layout);
+    }
+
+    function setup() {
+        return fetch('/api/board')
+            .then(r => r.json())
+            .then(data => {
+                const categories = data.categories || [];
+                const layout = computeBoardLayout(categories);
+
+                updateLayout(layout, { resetRevealed: true });
+
+                console.log('🎨 Mosaico listo para integrarse al tablero:', state.grid);
+                applyToBoard();
+            })
+            .catch(err => {
+                console.error('No se pudo preparar el mosaico:', err);
+            });
+    }
+
+    function initialize(imagesFolder) {
+        if (!imagesFolder) {
+            resetState();
+            applyToBoard();
+            return;
+        }
+
+        const mosaicUrl = `/images/${imagesFolder}/MOSAICO.jpg`;
+
+        const testImg = new Image();
+        testImg.onload = function() {
+            console.log('🎨 Mosaico encontrado:', mosaicUrl);
+            state.enabled = true;
+            state.imageUrl = mosaicUrl;
+            setup();
+        };
+        testImg.onerror = function() {
+            const mosaicUrlPng = `/images/${imagesFolder}/MOSAICO.png`;
+            const testImg2 = new Image();
+            testImg2.onload = function() {
+                console.log('🎨 Mosaico encontrado:', mosaicUrlPng);
+                state.enabled = true;
+                state.imageUrl = mosaicUrlPng;
+                setup();
+            };
+            testImg2.onerror = function() {
+                console.log('⚠️ No se encontró imagen MOSAICO');
+                resetState();
+                applyToBoard();
+            };
+            testImg2.src = mosaicUrlPng;
+        };
+        testImg.src = mosaicUrl;
+    }
+
+    return {
+        state,
+        initialize,
+        revealPiece,
+        applyToBoard,
+        updateLayout,
+        getDisplayRowIndex,
+        recalculateProgress
+    };
+})();
+
 // Algunos templates antiguos incluían múltiples instancias del menú contextual de
 // puntajes. Si detectamos copias extra, las eliminamos para evitar que se
 // muestre un segundo menú.
@@ -68,7 +366,7 @@ socket.on('connected', (data) => {
         .then(r => r.json())
         .then(result => {
             if (result.images_folder) {
-                initializeMosaic(result.images_folder);
+                mosaic.initialize(result.images_folder);
             }
         })
         .catch(err => console.log('No hay carpeta de imágenes'));
@@ -130,7 +428,7 @@ socket.on('answer_result', (data) => {
         
         // Revelar pieza del mosaico
         if (gameState.currentQuestion) {
-            revealMosaicPiece(
+            mosaic.revealPiece(
                 gameState.currentQuestion.cat_idx,
                 gameState.currentQuestion.clue_idx
             );
@@ -194,7 +492,7 @@ socket.on('game_reset', (data) => {
         .then(r => r.json())
         .then(result => {
             if (result.images_folder) {
-                initializeMosaic(result.images_folder);
+                mosaic.initialize(result.images_folder);
             }
         })
         .catch(err => console.log('No hay carpeta de imágenes'));
@@ -304,12 +602,12 @@ function renderBoard(data) {
     gameState.currentQuestion = null;
     updateControlsMode();
 
-    updateMosaicLayout(layout);
+    mosaic.updateLayout(layout);
 
-    if (mosaicState.enabled) {
-        requestAnimationFrame(() => applyMosaicToBoard());
+    if (mosaic.state.enabled) {
+        requestAnimationFrame(() => mosaic.applyToBoard());
     } else {
-        applyMosaicToBoard();
+        mosaic.applyToBoard();
     }
 }
 
@@ -665,7 +963,7 @@ function handleFileSelection(event) {
             if (response.ok && data.success) {
                 setStatus(data.message || 'Datos cargados correctamente', 'correct');
                 const fileName = file.name.replace(/\.[^/.]+$/, '');
-                initializeMosaic(fileName);
+                mosaic.initialize(fileName);
             } else {
                 const errorMessage = data.error || 'Error al cargar archivo';
                 throw new Error(errorMessage);
@@ -1344,300 +1642,3 @@ window.addEventListener('beforeunload', (e) => {
         e.returnValue = '';
     }
 });
-
-
-// ===========================
-// SISTEMA DE MOSAICO
-// ===========================
-
-const mosaicState = {
-    enabled: false,
-    imageUrl: null,
-    totalPieces: 0,
-    revealedPieces: 0,
-    grid: { rows: 0, cols: 0 },
-    revealedPiecesSet: new Set(),
-    layout: {
-        rowOrder: [],
-        displayIndexByOriginal: {},
-        cols: 0
-    }
-};
-
-// Inicializar mosaico cuando se carga un juego con imágenes
-function initializeMosaic(imagesFolder) {
-    if (!imagesFolder) {
-        mosaicState.enabled = false;
-        mosaicState.imageUrl = null;
-        mosaicState.totalPieces = 0;
-        mosaicState.revealedPieces = 0;
-        mosaicState.revealedPiecesSet = new Set();
-        mosaicState.layout = { rowOrder: [], displayIndexByOriginal: {}, cols: 0 };
-        applyMosaicToBoard();
-        return;
-    }
-
-    // Buscar si existe imagen MOSAICO
-    const mosaicUrl = `/images/${imagesFolder}/MOSAICO.jpg`;
-    
-    // Intentar cargar la imagen
-    const testImg = new Image();
-    testImg.onload = function() {
-        console.log('🎨 Mosaico encontrado:', mosaicUrl);
-        mosaicState.enabled = true;
-        mosaicState.imageUrl = mosaicUrl;
-        setupMosaic();
-    };
-    testImg.onerror = function() {
-        // Intentar con PNG
-        const mosaicUrlPng = `/images/${imagesFolder}/MOSAICO.png`;
-        const testImg2 = new Image();
-        testImg2.onload = function() {
-            console.log('🎨 Mosaico encontrado:', mosaicUrlPng);
-            mosaicState.enabled = true;
-            mosaicState.imageUrl = mosaicUrlPng;
-            setupMosaic();
-        };
-        testImg2.onerror = function() {
-            console.log('⚠️ No se encontró imagen MOSAICO');
-            mosaicState.enabled = false;
-            mosaicState.imageUrl = null;
-            mosaicState.totalPieces = 0;
-            mosaicState.revealedPieces = 0;
-            mosaicState.revealedPiecesSet = new Set();
-            mosaicState.layout = { rowOrder: [], displayIndexByOriginal: {}, cols: 0 };
-            applyMosaicToBoard();
-        };
-        testImg2.src = mosaicUrlPng;
-    };
-    testImg.src = mosaicUrl;
-}
-
-// Configurar el mosaico
-function setupMosaic() {
-    // Obtener número de categorías y preguntas
-    fetch('/api/board')
-        .then(r => r.json())
-        .then(data => {
-            const categories = data.categories || [];
-            const layout = computeBoardLayout(categories);
-
-            updateMosaicLayout(layout, { resetRevealed: true });
-
-            console.log('🎨 Mosaico listo para integrarse al tablero:', mosaicState.grid);
-            applyMosaicToBoard();
-        });
-}
-
-// Revelar pieza del mosaico
-function revealMosaicPiece(catIdx, clueIdx) {
-    if (!mosaicState.enabled) return;
-
-    const newlyRevealed = markMosaicPieceRevealed(catIdx, clueIdx);
-
-    if (newlyRevealed) {
-        console.log(`🎨 Pieza revelada: ${mosaicState.revealedPieces}/${mosaicState.totalPieces}`);
-    }
-
-    applyMosaicToBoard();
-
-    if (
-        newlyRevealed &&
-        mosaicState.totalPieces > 0 &&
-        mosaicState.revealedPieces >= mosaicState.totalPieces
-    ) {
-        setStatus('¡Mosaico completado!', 'correct');
-        createConfetti();
-    }
-
-function markMosaicPieceRevealed(catIdx, clueIdx) {
-    if (!mosaicState.enabled) return false;
-
-    if (!mosaicState.revealedPiecesSet) {
-        mosaicState.revealedPiecesSet = new Set();
-    }
-
-    const key = `${catIdx}-${clueIdx}`;
-    if (mosaicState.revealedPiecesSet.has(key)) {
-        return false;
-    }
-
-    // Verificar si el índice tiene una fila visible en el layout actual
-    if (getDisplayRowIndex(clueIdx) === null) {
-        const fallbackCell = document.querySelector(
-            `.board-cell.clue[data-cat-idx="${catIdx}"][data-clue-idx="${clueIdx}"]`
-        );
-
-        if (!fallbackCell || Number.isNaN(parseInt(fallbackCell.dataset.displayRow, 10))) {
-            return false;
-        }
-    }
-
-    mosaicState.revealedPiecesSet.add(key);
-    recalculateMosaicProgress();
-    return true;
-}
-
-function applyMosaicToBoard() {
-    const cells = document.querySelectorAll('.board-cell.clue');
-
-    if (!mosaicState.enabled || !mosaicState.imageUrl) {
-        cells.forEach(clearMosaicFromCell);
-        return;
-    }
-
-    cells.forEach(cell => {
-        const catIdx = parseInt(cell.dataset.catIdx, 10);
-        const clueIdx = parseInt(cell.dataset.clueIdx, 10);
-        const displayRow = parseInt(cell.dataset.displayRow, 10);
-
-        if (Number.isNaN(catIdx) || Number.isNaN(clueIdx)) {
-            clearMosaicFromCell(cell);
-            return;
-        }
-
-        const key = `${catIdx}-${clueIdx}`;
-        let isRevealed = mosaicState.revealedPiecesSet?.has(key);
-        const cellConsumed = cell.classList.contains('used') || cell.classList.contains('correct');
-
-        if (cellConsumed) {
-            const newlyRevealed = markMosaicPieceRevealed(catIdx, clueIdx);
-            if (newlyRevealed) {
-                isRevealed = true;
-            }
-        }
-
-        if (isRevealed) {
-            applyMosaicToCellElement(cell, catIdx, clueIdx, displayRow);
-        } else {
-            clearMosaicFromCell(cell);
-        }
-    });
-}
-
-function applyMosaicToCellElement(cell, catIdx, clueIdx, displayRow) {
-    if (!cell || !mosaicState.imageUrl) return;
-
-    const cols = Math.max(mosaicState.grid.cols, 1);
-    const rows = Math.max(mosaicState.grid.rows, 1);
-
-    const normalizedRow = Number.isNaN(displayRow)
-        ? getDisplayRowIndex(clueIdx)
-        : displayRow;
-
-    if (normalizedRow === null) {
-        clearMosaicFromCell(cell);
-        return;
-    }
-
-    const posX = cols > 1 ? (catIdx / (cols - 1)) * 100 : 50;
-    const posY = rows > 1 ? (normalizedRow / (rows - 1)) * 100 : 50;
-    const sizeW = cols * 100;
-    const sizeH = rows * 100;
-
-    cell.classList.add('mosaic-visible');
-    cell.style.background = 'none';
-    cell.style.backgroundImage = `url('${mosaicState.imageUrl}')`;
-    cell.style.backgroundPosition = `${posX}% ${posY}%`;
-    cell.style.backgroundSize = `${sizeW}% ${sizeH}%`;
-    cell.style.backgroundRepeat = 'no-repeat';
-    cell.style.color = 'transparent';
-
-    if (!cell.dataset.value && cell.textContent) {
-        cell.dataset.value = cell.textContent.trim();
-    }
-
-    if (cell.textContent.trim() !== '') {
-        cell.dataset.value = cell.textContent.trim();
-    }
-
-    cell.textContent = '';
-}
-
-function updateMosaicLayout(layout, options = {}) {
-    mosaicState.grid = {
-        rows: layout.rowOrder.length,
-        cols: layout.cols
-    };
-    mosaicState.layout = {
-        rowOrder: [...layout.rowOrder],
-        displayIndexByOriginal: { ...layout.displayIndexByOriginal },
-        cols: layout.cols
-    };
-
-    if (options.resetRevealed) {
-        mosaicState.revealedPiecesSet = new Set();
-    } else if (mosaicState.revealedPiecesSet) {
-        const filtered = new Set();
-        mosaicState.revealedPiecesSet.forEach(key => {
-            const [catIdxStr, clueIdxStr] = key.split('-');
-            const catIdx = parseInt(catIdxStr, 10);
-            const clueIdx = parseInt(clueIdxStr, 10);
-            if (Number.isNaN(catIdx) || Number.isNaN(clueIdx)) return;
-            if (catIdx >= layout.cols) return;
-            if (getDisplayRowIndex(clueIdx, layout) === null) return;
-            filtered.add(key);
-        });
-        mosaicState.revealedPiecesSet = filtered;
-    }
-
-    mosaicState.totalPieces = mosaicState.grid.rows * mosaicState.grid.cols;
-    recalculateMosaicProgress(layout);
-}
-
-function getDisplayRowIndex(originalRow, layoutOverride) {
-    const layoutRef = layoutOverride || mosaicState.layout;
-    if (!layoutRef || !layoutRef.displayIndexByOriginal) return null;
-    const mapped = layoutRef.displayIndexByOriginal[originalRow];
-    return typeof mapped === 'number' ? mapped : null;
-}
-
-function recalculateMosaicProgress(layoutOverride) {
-    const layoutRef = layoutOverride || mosaicState.layout;
-    if (!mosaicState.revealedPiecesSet || !layoutRef) {
-        mosaicState.revealedPieces = 0;
-        return;
-    }
-
-    let count = 0;
-    mosaicState.revealedPiecesSet.forEach(key => {
-        const [catIdxStr, clueIdxStr] = key.split('-');
-        const clueIdx = parseInt(clueIdxStr, 10);
-
-        if (getDisplayRowIndex(clueIdx, layoutRef) !== null) {
-            count += 1;
-            return;
-        }
-
-        const catIdx = parseInt(catIdxStr, 10);
-        const fallbackCell = document.querySelector(
-            `.board-cell.clue[data-cat-idx="${catIdx}"][data-clue-idx="${clueIdx}"]`
-        );
-
-        if (fallbackCell) {
-            const fallbackRow = parseInt(fallbackCell.dataset.displayRow, 10);
-            if (!Number.isNaN(fallbackRow)) {
-                count += 1;
-            }
-        }
-    });
-
-    mosaicState.revealedPieces = count;
-}
-
-function clearMosaicFromCell(cell) {
-    if (!cell) return;
-
-    cell.classList.remove('mosaic-visible');
-    cell.style.background = '';
-    cell.style.backgroundImage = '';
-    cell.style.backgroundPosition = '';
-    cell.style.backgroundSize = '';
-    cell.style.backgroundRepeat = '';
-    cell.style.color = '';
-
-    if (cell.dataset.value && cell.textContent.trim() === '') {
-        cell.textContent = cell.dataset.value;
-    }
-}
-}
