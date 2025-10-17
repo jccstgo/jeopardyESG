@@ -735,6 +735,23 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Cerrar menú al hacer clic fuera de él
+document.addEventListener('click', (event) => {
+    const menu = document.getElementById('score-menu');
+
+    // Salir si el menú no está visible
+    if (!menu || menu.style.display !== 'block') {
+        return;
+    }
+
+    // Ignorar clics dentro del menú contextual
+    if (menu.contains(event.target)) {
+        return;
+    }
+
+    closeScoreMenu();
+});
+
 function closeScoreMenu() {
     const menu = document.getElementById('score-menu');
     const overlay = document.getElementById('menu-overlay');
