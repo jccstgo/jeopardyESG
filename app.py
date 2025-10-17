@@ -126,6 +126,11 @@ def reset_game():
     socketio.emit('game_reset', game.get_board_state())
     return jsonify({"success": True})
 
+@app.route('/api/images-folder')
+def get_images_folder():
+    """Obtiene la carpeta de imágenes actual"""
+    return jsonify({"images_folder": game.images_folder})
+
 # =====================
 # WEBSOCKET EVENTS
 # =====================
@@ -302,6 +307,7 @@ def serve_image(folder, filename):
         print(f"Error sirviendo imagen {folder}/{filename}: {e}")
         return "Imagen no encontrada", 404
 
+
 # =====================
 # INICIAR SERVIDOR
 # =====================
@@ -313,10 +319,7 @@ if __name__ == '__main__':
     os.makedirs('static/css', exist_ok=True)
     os.makedirs('static/js', exist_ok=True)
     os.makedirs('templates', exist_ok=True)
-    @app.route('/api/images-folder')
-    def get_images_folder():
-        """Obtiene la carpeta de imágenes actual"""
-        return jsonify({"images_folder": game.images_folder})
+    
     
     print("\n" + "="*50)
     print("🎮 JEOPARDY WEB - Servidor Iniciado")
