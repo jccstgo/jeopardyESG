@@ -29,6 +29,16 @@ const elements = {
     hideAnswersCheckbox: document.getElementById('hide-answers')
 };
 
+// Algunos templates antiguos incluían múltiples instancias del menú contextual de
+// puntajes. Si detectamos copias extra, las eliminamos para evitar que se
+// muestre un segundo menú.
+const scoreMenus = document.querySelectorAll('#score-menu');
+scoreMenus.forEach((menuEl, idx) => {
+    if (idx > 0) {
+        menuEl.remove();
+    }
+});
+
 // Sonidos
 const sounds = {
     buzz: new Audio('/sounds/boton_presionado2.wav'),
