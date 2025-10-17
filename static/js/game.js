@@ -262,11 +262,12 @@ function renderBoard(data) {
                 const key = `${catIdx},${row}`;
                 const status = tileStatus[key];
                 const value = clue.value || ((row + 1) * 100);
-                
+
                 cell.textContent = value;
                 cell.dataset.catIdx = catIdx;
                 cell.dataset.clueIdx = row;
-                
+                cell.dataset.value = value;
+
                 if (status === 'correct') {
                     cell.classList.add('correct');
                 } else if (status === 'used' || used.has(`${catIdx}-${row}`)) {
@@ -301,10 +302,12 @@ function renderBoard(data) {
         `;
         document.head.appendChild(style);
     }
-    
+
     // Asegurar que estamos en modo tablero
     gameState.currentQuestion = null;
     updateControlsMode();
+
+    applyMosaicToBoard();
 }
 
 // ===========================
@@ -1317,14 +1320,19 @@ const mosaicState = {
     imageUrl: null,
     totalPieces: 0,
     revealedPieces: 0,
-    grid: { rows: 0, cols: 0 }
+    grid: { rows: 0, cols: 0 },
+    revealedPiecesSet: new Set()
 };
 
 // Inicializar mosaico cuando se carga un juego con imágenes
 function initializeMosaic(imagesFolder) {
     if (!imagesFolder) {
         mosaicState.enabled = false;
-        hideMosaic();
+        mosaicState.imageUrl = null;
+        mosaicState.totalPieces = 0;
+        mosaicState.revealedPieces = 0;
+        mosaicState.revealedPiecesSet = new Set();
+        applyMosaicToBoard();
         return;
     }
 
@@ -1352,7 +1360,11 @@ function initializeMosaic(imagesFolder) {
         testImg2.onerror = function() {
             console.log('⚠️ No se encontró imagen MOSAICO');
             mosaicState.enabled = false;
-            hideMosaic();
+            mosaicState.imageUrl = null;
+            mosaicState.totalPieces = 0;
+            mosaicState.revealedPieces = 0;
+            mosaicState.revealedPiecesSet = new Set();
+            applyMosaicToBoard();
         };
         testImg2.src = mosaicUrlPng;
     };
@@ -1368,175 +1380,131 @@ function setupMosaic() {
             const categories = data.categories || [];
             const numCols = categories.length;
             const numRows = categories[0]?.clues?.length || 0;
-            
+
             mosaicState.grid = { rows: numRows, cols: numCols };
             mosaicState.totalPieces = numRows * numCols;
             mosaicState.revealedPieces = 0;
-            
-            createMosaicElement();
-            updateMosaicProgress();
+            mosaicState.revealedPiecesSet = new Set();
+
+            console.log('🎨 Mosaico listo para integrarse al tablero:', mosaicState.grid);
+            applyMosaicToBoard();
         });
-}
-
-// Crear el elemento HTML del mosaico
-function createMosaicElement() {
-    // Remover mosaico anterior si existe
-    let container = document.getElementById('mosaic-container');
-    if (container) {
-        container.remove();
-    }
-
-    // Crear contenedor
-    container = document.createElement('div');
-    container.id = 'mosaic-container';
-    
-    // Crear grid
-    const grid = document.createElement('div');
-    grid.id = 'mosaic-grid';
-    grid.style.gridTemplateColumns = `repeat(${mosaicState.grid.cols}, 1fr)`;
-    grid.style.gridTemplateRows = `repeat(${mosaicState.grid.rows}, 1fr)`;
-    
-    // Crear contador de progreso
-    const progress = document.createElement('div');
-    progress.id = 'mosaic-progress';
-    progress.textContent = `0 / ${mosaicState.totalPieces}`;
-    container.appendChild(progress);
-    
-    // Crear piezas del mosaico
-    for (let row = 0; row < mosaicState.grid.rows; row++) {
-        for (let col = 0; col < mosaicState.grid.cols; col++) {
-            const piece = document.createElement('div');
-            piece.className = 'mosaic-piece';
-            piece.dataset.row = row;
-            piece.dataset.col = col;
-            piece.dataset.catIdx = col;
-            piece.dataset.clueIdx = row;
-            
-            // Crear fondo con la parte correspondiente de la imagen
-            const bg = document.createElement('div');
-            bg.className = 'mosaic-piece-bg';
-            
-            const bgPosX = (col / (mosaicState.grid.cols - 1)) * 100;
-            const bgPosY = (row / (mosaicState.grid.rows - 1)) * 100;
-            const bgSizeW = mosaicState.grid.cols * 100;
-            const bgSizeH = mosaicState.grid.rows * 100;
-            
-            bg.style.backgroundImage = `url('${mosaicState.imageUrl}')`;
-            bg.style.backgroundPosition = `${bgPosX}% ${bgPosY}%`;
-            bg.style.backgroundSize = `${bgSizeW}% ${bgSizeH}%`;
-            
-            piece.appendChild(bg);
-            grid.appendChild(piece);
-        }
-    }
-    
-    container.appendChild(grid);
-    document.getElementById('app').appendChild(container);
-    
-    console.log('🎨 Mosaico creado:', mosaicState.grid);
 }
 
 // Revelar pieza del mosaico
 function revealMosaicPiece(catIdx, clueIdx) {
     if (!mosaicState.enabled) return;
-    
-    const piece = document.querySelector(
-        `.mosaic-piece[data-cat-idx="${catIdx}"][data-clue-idx="${clueIdx}"]`
-    );
-    
-    if (piece && !piece.classList.contains('revealed')) {
-        piece.classList.add('revealed');
-        mosaicState.revealedPieces++;
-        
+
+    const newlyRevealed = markMosaicPieceRevealed(catIdx, clueIdx);
+
+    if (newlyRevealed) {
         console.log(`🎨 Pieza revelada: ${mosaicState.revealedPieces}/${mosaicState.totalPieces}`);
-        
-        updateMosaicProgress();
-        
-        // Verificar si está completo
-        if (mosaicState.revealedPieces >= mosaicState.totalPieces) {
-            setTimeout(() => {
-                showCompleteMosaic();
-            }, 1000);
+    }
+
+    applyMosaicToBoard();
+
+    if (
+        newlyRevealed &&
+        mosaicState.totalPieces > 0 &&
+        mosaicState.revealedPieces >= mosaicState.totalPieces
+    ) {
+        setStatus('¡Mosaico completado!', 'correct');
+        createConfetti();
+    }
+}
+
+function markMosaicPieceRevealed(catIdx, clueIdx) {
+    if (!mosaicState.enabled) return false;
+
+    if (!mosaicState.revealedPiecesSet) {
+        mosaicState.revealedPiecesSet = new Set();
+    }
+
+    const key = `${catIdx}-${clueIdx}`;
+    if (mosaicState.revealedPiecesSet.has(key)) {
+        return false;
+    }
+
+    mosaicState.revealedPiecesSet.add(key);
+    mosaicState.revealedPieces = mosaicState.revealedPiecesSet.size;
+    return true;
+}
+
+function applyMosaicToBoard() {
+    const cells = document.querySelectorAll('.board-cell.clue');
+
+    if (!mosaicState.enabled || !mosaicState.imageUrl) {
+        cells.forEach(clearMosaicFromCell);
+        return;
+    }
+
+    cells.forEach(cell => {
+        const catIdx = parseInt(cell.dataset.catIdx, 10);
+        const clueIdx = parseInt(cell.dataset.clueIdx, 10);
+
+        if (Number.isNaN(catIdx) || Number.isNaN(clueIdx)) {
+            clearMosaicFromCell(cell);
+            return;
         }
-    }
+
+        const key = `${catIdx}-${clueIdx}`;
+        const isRevealed = mosaicState.revealedPiecesSet?.has(key);
+        const cellConsumed = cell.classList.contains('used') || cell.classList.contains('correct');
+
+        if (cellConsumed) {
+            markMosaicPieceRevealed(catIdx, clueIdx);
+        }
+
+        if (isRevealed || cellConsumed) {
+            applyMosaicToCellElement(cell, catIdx, clueIdx);
+        } else {
+            clearMosaicFromCell(cell);
+        }
+    });
 }
 
-// Actualizar contador de progreso
-function updateMosaicProgress() {
-    const progress = document.getElementById('mosaic-progress');
-    if (progress) {
-        progress.textContent = `${mosaicState.revealedPieces} / ${mosaicState.totalPieces}`;
+function applyMosaicToCellElement(cell, catIdx, clueIdx) {
+    if (!cell || !mosaicState.imageUrl) return;
+
+    const cols = Math.max(mosaicState.grid.cols, 1);
+    const rows = Math.max(mosaicState.grid.rows, 1);
+
+    const posX = cols > 1 ? (catIdx / (cols - 1)) * 100 : 50;
+    const posY = rows > 1 ? (clueIdx / (rows - 1)) * 100 : 50;
+    const sizeW = cols * 100;
+    const sizeH = rows * 100;
+
+    cell.classList.add('mosaic-visible');
+    cell.style.background = 'none';
+    cell.style.backgroundImage = `url('${mosaicState.imageUrl}')`;
+    cell.style.backgroundPosition = `${posX}% ${posY}%`;
+    cell.style.backgroundSize = `${sizeW}% ${sizeH}%`;
+    cell.style.backgroundRepeat = 'no-repeat';
+    cell.style.color = 'transparent';
+
+    if (!cell.dataset.value && cell.textContent) {
+        cell.dataset.value = cell.textContent.trim();
     }
+
+    if (cell.textContent.trim() !== '') {
+        cell.dataset.value = cell.textContent.trim();
+    }
+
+    cell.textContent = '';
 }
 
-// Mostrar mosaico completo
-function showCompleteMosaic() {
-    console.log('🎉 ¡Mosaico completo!');
-    
-    const container = document.getElementById('mosaic-container');
-    if (!container) return;
-    
-    // Crear overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'mosaic-overlay';
-    overlay.className = 'active';
-    document.body.appendChild(overlay);
-    
-    // Expandir mosaico
-    container.classList.add('complete');
-    
-    // Botón de cerrar
-    const closeBtn = document.createElement('button');
-    closeBtn.id = 'mosaic-close-btn';
-    closeBtn.innerHTML = '✕';
-    closeBtn.onclick = closeMosaic;
-    container.appendChild(closeBtn);
-    
-    // Mensaje de completado
-    const message = document.createElement('div');
-    message.id = 'mosaic-complete-message';
-    message.innerHTML = '🎉 ¡Mosaico Completo! 🎉';
-    container.appendChild(message);
-    
-    // Sonido de victoria
-    playSound('correct');
-    
-    // Confetti
-    createConfetti();
-}
+function clearMosaicFromCell(cell) {
+    if (!cell) return;
 
-// Cerrar mosaico completo
-function closeMosaic() {
-    const container = document.getElementById('mosaic-container');
-    const overlay = document.getElementById('mosaic-overlay');
-    
-    if (container) {
-        container.classList.remove('complete');
-        
-        // Remover botón y mensaje
-        const closeBtn = document.getElementById('mosaic-close-btn');
-        const message = document.getElementById('mosaic-complete-message');
-        if (closeBtn) closeBtn.remove();
-        if (message) message.remove();
-    }
-    
-    if (overlay) {
-        overlay.remove();
-    }
-}
+    cell.classList.remove('mosaic-visible');
+    cell.style.background = '';
+    cell.style.backgroundImage = '';
+    cell.style.backgroundPosition = '';
+    cell.style.backgroundSize = '';
+    cell.style.backgroundRepeat = '';
+    cell.style.color = '';
 
-// Ocultar mosaico
-function hideMosaic() {
-    const container = document.getElementById('mosaic-container');
-    if (container) {
-        container.classList.add('hidden');
-    }
-}
-
-// Mostrar mosaico
-function showMosaic() {
-    const container = document.getElementById('mosaic-container');
-    if (container) {
-        container.classList.remove('hidden');
+    if (cell.dataset.value && cell.textContent.trim() === '') {
+        cell.textContent = cell.dataset.value;
     }
 }
