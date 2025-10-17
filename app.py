@@ -3,12 +3,14 @@
 """
 Servidor Flask para Jeopardy Web
 WebSockets para comunicación en tiempo real
+Con soporte para imágenes en preguntas
 """
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit
 import game_logic
 import os
 import tempfile
+from pathlib import Path
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'jeopardy_secret_2025'
@@ -66,6 +68,7 @@ def load_data():
             data = request.get_json(silent=True) or {}
             file_type = data.get('type', 'json')
             file_path = data.get('path', '')
+            original_name = os.path.basename(file_path) if file_path else None
 
             if not file_path:
                 return jsonify({"error": "No se especificó archivo"}), 400
@@ -75,8 +78,27 @@ def load_data():
                 file_path,
                 used_csv_path="data/usadas.csv"
             )
+            
+            # Establecer carpeta de imágenes basada en el NOMBRE ORIGINAL del archivo
+            # La carpeta debe tener el mismo nombre que el archivo sin extensión
+            if original_name:
+                csv_basename = Path(original_name).stem
+            else:
+                csv_basename = Path(file_path).stem
+            
+            images_folder = f"data/{csv_basename}"
+            
+            # Verificar si la carpeta existe
+            if os.path.exists(images_folder) and os.path.isdir(images_folder):
+                game.images_folder = csv_basename
+                print(f"📁 Carpeta de imágenes configurada: {images_folder}")
+            else:
+                game.images_folder = None
+                print(f"⚠️ No se encontró carpeta de imágenes: {images_folder}")
+                print(f"   Asegúrate de crear la carpeta: {images_folder}")
         else:
             game.data = game_logic.load_data(file_path)
+            game.images_folder = None
 
         game.reset_game()
 
@@ -85,6 +107,8 @@ def load_data():
 
         display_name = original_name or os.path.basename(file_path)
         message = f"Datos cargados correctamente desde {display_name}"
+        if game.images_folder:
+            message += f" (con imágenes de data/{game.images_folder}/)"
         return jsonify({"success": True, "message": message})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -268,6 +292,16 @@ def serve_sound(filename):
     """Sirve archivos de sonido"""
     return send_from_directory('static/sounds', filename)
 
+@app.route('/images/<folder>/<filename>')
+def serve_image(folder, filename):
+    """Sirve imágenes de preguntas desde data/<folder>/<filename>"""
+    try:
+        image_path = os.path.join('data', folder)
+        return send_from_directory(image_path, filename)
+    except Exception as e:
+        print(f"Error sirviendo imagen {folder}/{filename}: {e}")
+        return "Imagen no encontrada", 404
+
 # =====================
 # INICIAR SERVIDOR
 # =====================
@@ -290,6 +324,9 @@ if __name__ == '__main__':
     print("   - Teclado A-D: Seleccionar respuestas")
     print("   - Enter: Confirmar respuesta")
     print("   - Escape: Cancelar")
+    print("\n📸 Soporte de imágenes:")
+    print("   - Las imágenes deben estar en data/<nombre_csv>/")
+    print("   - Ejemplo: data/preguntas/imagen1.jpg")
     print("\n⚡ WebSockets activos para tiempo real")
     print("="*50 + "\n")
     

@@ -1034,3 +1034,218 @@ button:active {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* ===========================
+   SOPORTE PARA IMÁGENES
+   =========================== */
+
+/* Ajustar el panel de pregunta para que todo quepa sin scroll */
+#question-panel {
+    max-height: none;
+    height: auto;
+    overflow: visible;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#question-content-wrapper {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+}
+
+/* Cuando hay imagen y respuestas visibles */
+#question-content-wrapper.with-image-and-choices {
+    flex-direction: row;
+}
+
+#question-image-container {
+    flex: 0 0 auto;
+    max-width: 35%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+#question-image-container.centered {
+    max-width: 100%;
+    width: 100%;
+    margin: 20px 0;
+}
+
+#question-image {
+    width: 100%;
+    height: auto;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 3px solid var(--accent-gold);
+    box-shadow: 0 8px 32px var(--shadow-strong);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+}
+
+#question-image.centered {
+    max-height: 350px;
+}
+
+#choices-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Ajuste cuando no hay imagen */
+#question-content-wrapper:not(.with-image-and-choices) #choices-wrapper {
+    width: 100%;
+}
+
+/* Ajustar espaciado del texto de pregunta */
+#question-text {
+    font-size: 24px;
+    margin-bottom: 20px;
+    padding: 16px;
+}
+
+/* Ajustar opciones de respuesta para que sean más compactas */
+.choice-option {
+    padding: 14px 20px;
+    margin-bottom: 12px;
+    font-size: 18px;
+}
+
+/* Ajustar footer de pregunta */
+#question-footer {
+    margin-top: 20px;
+    gap: 15px;
+}
+
+#question-status {
+    padding: 12px;
+    font-size: 16px;
+}
+
+/* Ajustar temporizador para ser más compacto */
+#timer-container {
+    padding: 14px 24px;
+    gap: 8px;
+}
+
+#timer {
+    font-size: 48px;
+    padding: 12px 24px;
+    min-width: 140px;
+}
+
+.timer-label {
+    font-size: 14px;
+}
+
+/* Responsive para imágenes */
+@media (max-width: 1400px) {
+    #question-image {
+        max-height: 250px;
+    }
+    
+    #question-image.centered {
+        max-height: 320px;
+    }
+    
+    #question-text {
+        font-size: 22px;
+        margin-bottom: 18px;
+        padding: 14px;
+    }
+    
+    .choice-option {
+        font-size: 17px;
+        padding: 12px 18px;
+    }
+}
+
+@media (max-width: 1200px) {
+    #question-content-wrapper.with-image-and-choices {
+        flex-direction: column;
+    }
+    
+    #question-image-container {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    #question-image {
+        max-height: 280px;
+    }
+    
+    #question-text {
+        font-size: 20px;
+    }
+    
+    .choice-option {
+        font-size: 16px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
+    }
+    
+    #timer {
+        font-size: 42px;
+        padding: 10px 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    #question-panel {
+        padding: 20px;
+        gap: 15px;
+    }
+    
+    #question-image {
+        max-height: 200px;
+    }
+    
+    #question-image.centered {
+        max-height: 250px;
+    }
+    
+    #question-text {
+        font-size: 18px;
+        margin-bottom: 15px;
+        padding: 12px;
+    }
+    
+    .choice-option {
+        font-size: 15px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+    }
+    
+    #timer {
+        font-size: 38px;
+        padding: 10px 18px;
+    }
+    
+    #timer-container {
+        padding: 12px 20px;
+    }
+}
+
+/* Animación para la aparición de la imagen */
+@keyframes imageZoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#question-image {
+    animation: imageZoomIn 0.4s ease;
+}

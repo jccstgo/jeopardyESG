@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Lógica del juego Jeopardy - Migrada desde Tkinter
+Lógica del juego Jeopardy - Con soporte para imágenes
 """
 import json
 import csv
@@ -11,6 +11,7 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 from typing import Dict, List, Set, Tuple, Optional, Any, Iterable
+import os
 
 TIME_LIMIT_SECONDS = 10
 
@@ -70,6 +71,7 @@ class GameState:
         self.current_question: Optional[Dict] = None
         self.timer_active = False
         self.hide_answers = False
+        self.images_folder = None  # Carpeta donde buscar imágenes
         
     def reset_game(self):
         """Reinicia el juego completo"""
@@ -98,6 +100,15 @@ class GameState:
             "choices": clue["choices"],
             "answer": clue["answer"]
         }
+        
+        # Agregar información de imagen si existe
+        if "image" in clue and clue["image"]:
+            image_name = clue["image"]
+            # Construir ruta relativa para el cliente
+            if self.images_folder:
+                self.current_question["image"] = image_name
+                self.current_question["image_folder"] = self.images_folder
+        
         self.tried_players.clear()
         
         return self.current_question
@@ -362,7 +373,7 @@ def _append_used_rows(used_csv_path: str, rows: List[dict]):
     exists = p.exists()
     try:
         with p.open("a", encoding="utf-8", newline="") as f:
-            fieldnames = ["idpregunta", "category", "value", "question", "choice_a", "choice_b", "choice_c", "choice_d", "answer"]
+            fieldnames = ["idpregunta", "category", "value", "question", "choice_a", "choice_b", "choice_c", "choice_d", "answer", "image"]
             w = csv.DictWriter(f, fieldnames=fieldnames)
             if not exists:
                 w.writeheader()
@@ -377,6 +388,7 @@ def _append_used_rows(used_csv_path: str, rows: List[dict]):
                     "choice_c": (row.get("choices", ["", "", "", ""])[2] if "choices" in row else row.get("choice_c", "")),
                     "choice_d": (row.get("choices", ["", "", "", ""])[3] if "choices" in row else row.get("choice_d", "")),
                     "answer": row.get("answer", 0),
+                    "image": row.get("image", ""),
                 })
     except Exception as e:
         print(f"Error guardando en usadas.csv: {e}")
@@ -388,7 +400,7 @@ def load_from_csv_sampled(
     values_per_category=(100, 200, 300, 400, 500),
     rng_seed: Optional[int] = None
 ) -> dict:
-    """Carga CSV con muestreo aleatorio excluyendo usadas"""
+    """Carga CSV con muestreo aleatorio excluyendo usadas y soporte para imágenes"""
     if rng_seed is not None:
         random.seed(rng_seed)
 
@@ -436,6 +448,10 @@ def load_from_csv_sampled(
             except Exception:
                 answer = 0
 
+        # Leer información de imagen
+        image = (raw_row.get("image") or "").strip()
+        nombre_imagen = (raw_row.get("nombre_imagen") or "").strip()
+
         bucket.setdefault((cat, val), []).append({
             "idpregunta": qid,
             "category": cat,
@@ -443,6 +459,7 @@ def load_from_csv_sampled(
             "question": question,
             "choices": choices,
             "answer": answer,
+            "image": nombre_imagen if image.lower() == "si" else "",
         })
 
     categories = {}
@@ -471,6 +488,7 @@ def load_from_csv_sampled(
                     "question": f"(Sin pregunta disponible para {cat} {val})",
                     "choices": ["", "", "", ""],
                     "answer": 0,
+                    "image": "",
                     "unavailable": True
                 }
                 
@@ -480,6 +498,10 @@ def load_from_csv_sampled(
                 "choices": pick["choices"],
                 "answer": pick["answer"],
             }
+
+            # Agregar imagen si existe
+            if pick.get("image"):
+                clue_payload["image"] = pick["image"]
 
             if pick.get("unavailable"):
                 clue_payload["unavailable"] = True
@@ -503,6 +525,7 @@ def load_from_csv_sampled(
                     "question": pick["question"],
                     "choices": pick["choices"],
                     "answer": pick["answer"],
+                    "image": pick.get("image", ""),
                 })
                 used_ids.add(pick["idpregunta"])
                 
@@ -562,6 +585,10 @@ COLUMN_ALIASES = {
     "choice_d": "choice_d",
     "respuesta": "answer",
     "answer": "answer",
+    "imagen": "image",
+    "image": "image",
+    "nombre_imagen": "nombre_imagen",
+    "nombre imagen": "nombre_imagen",
 }
 
 

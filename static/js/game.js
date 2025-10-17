@@ -290,10 +290,77 @@ function showQuestionPanel(question) {
     document.getElementById('question-text').textContent = question.question;
     document.getElementById('question-status').textContent = 'Esperando timbre...';
     
-    // Renderizar opciones
-    const choicesContainer = document.getElementById('choices-container');
-    choicesContainer.innerHTML = '';
+    // Determinar si hay imagen
+    const hasImage = question.image && question.image_folder;
     
+    // Crear o limpiar el contenedor de contenido
+    let contentWrapper = document.getElementById('question-content-wrapper');
+    if (!contentWrapper) {
+        contentWrapper = document.createElement('div');
+        contentWrapper.id = 'question-content-wrapper';
+        
+        // Insertar después del texto de la pregunta
+        const questionText = document.getElementById('question-text');
+        questionText.parentNode.insertBefore(contentWrapper, questionText.nextSibling);
+    }
+    
+    contentWrapper.innerHTML = '';
+    contentWrapper.className = '';
+    
+    // Crear contenedor de opciones PRIMERO
+    const choicesWrapper = document.createElement('div');
+    choicesWrapper.id = 'choices-wrapper';
+    
+    const choicesContainer = document.createElement('div');
+    choicesContainer.id = 'choices-container';
+    choicesWrapper.appendChild(choicesContainer);
+    
+    contentWrapper.appendChild(choicesWrapper);
+    
+    // Manejar imagen si existe (se agrega DESPUÉS para que aparezca a la derecha)
+    if (hasImage) {
+        const imageContainer = document.createElement('div');
+        imageContainer.id = 'question-image-container';
+        
+        const img = document.createElement('img');
+        img.id = 'question-image';
+        img.src = `/images/${question.image_folder}/${question.image}`;
+        img.alt = 'Imagen de la pregunta';
+        
+        img.onerror = function() {
+            console.error('Error cargando imagen:', question.image);
+            imageContainer.innerHTML = '<div style="padding: 20px; background: rgba(255,0,0,0.1); border-radius: 8px; color: #fff;">⚠️ Imagen no disponible</div>';
+        };
+        
+        imageContainer.appendChild(img);
+        contentWrapper.appendChild(imageContainer);
+    }
+    
+    // Configurar layout según el contexto
+    if (hasImage && !gameState.hideAnswers) {
+        // Imagen + Respuestas visibles: Layout lado a lado
+        contentWrapper.classList.add('with-image-and-choices');
+        const imageContainer = contentWrapper.querySelector('#question-image-container');
+        if (imageContainer) {
+            imageContainer.classList.remove('centered');
+        }
+        const img = contentWrapper.querySelector('#question-image');
+        if (img) {
+            img.classList.remove('centered');
+        }
+    } else if (hasImage && gameState.hideAnswers) {
+        // Imagen + Respuestas ocultas: Imagen centrada
+        const imageContainer = contentWrapper.querySelector('#question-image-container');
+        if (imageContainer) {
+            imageContainer.classList.add('centered');
+        }
+        const img = contentWrapper.querySelector('#question-image');
+        if (img) {
+            img.classList.add('centered');
+        }
+    }
+    
+    // Renderizar opciones
     if (question.choices && !gameState.hideAnswers) {
         question.choices.forEach((choice, idx) => {
             const option = document.createElement('div');
@@ -333,7 +400,10 @@ function showQuestionPanel(question) {
             choicesContainer.appendChild(option);
         });
     } else if (gameState.hideAnswers) {
-        choicesContainer.innerHTML = '<p style="text-align:center;color:#666;">Modo moderador: respuestas ocultas</p>';
+        if (!hasImage) {
+            choicesContainer.innerHTML = '<p style="text-align:center;color:#FFD700;font-size:18px;padding:20px;">🔒 Modo moderador: respuestas ocultas</p>';
+        }
+        // Si hay imagen y respuestas ocultas, no mostrar nada en el contenedor de opciones
     }
     
     updateControlsMode();
