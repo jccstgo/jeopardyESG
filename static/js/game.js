@@ -74,13 +74,6 @@ socket.on('connected', (data) => {
         .catch(err => console.log('No hay carpeta de imágenes'));
 });
 
-socket.on('connected', (data) => {
-    console.log('📊 Estado inicial recibido');
-    renderBoard(data.board);
-    updateScores(data.board.scores);
-    setStatus('Selecciona una casilla para abrir una pregunta', 'info');
-});
-
 // ===========================
 // EVENTOS DEL SERVIDOR
 // ===========================
