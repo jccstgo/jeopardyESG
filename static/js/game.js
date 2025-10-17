@@ -29,6 +29,16 @@ const elements = {
     hideAnswersCheckbox: document.getElementById('hide-answers')
 };
 
+// Algunos templates antiguos incluían múltiples instancias del menú contextual de
+// puntajes. Si detectamos copias extra, las eliminamos para evitar que se
+// muestre un segundo menú.
+const scoreMenus = document.querySelectorAll('#score-menu');
+scoreMenus.forEach((menuEl, idx) => {
+    if (idx > 0) {
+        menuEl.remove();
+    }
+});
+
 // Sonidos
 const sounds = {
     buzz: new Audio('/sounds/boton_presionado2.wav'),
@@ -734,6 +744,25 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+function handleGlobalMenuClose(event) {
+    const menu = document.getElementById('score-menu');
+
+    if (!menu || menu.style.display !== 'block') {
+        return;
+    }
+
+    // Mantener el menú abierto si el punto de interacción está dentro de él.
+    if (menu.contains(event.target)) {
+        return;
+    }
+
+    closeScoreMenu();
+}
+
+// Detectar interacciones con mouse, táctil o stylus fuera del menú.
+document.addEventListener('pointerdown', handleGlobalMenuClose, true);
+document.addEventListener('click', handleGlobalMenuClose);
 
 function closeScoreMenu() {
     const menu = document.getElementById('score-menu');
