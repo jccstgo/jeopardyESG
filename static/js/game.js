@@ -382,6 +382,7 @@ socket.on('question_opened', (data) => {
     gameState.selectedAnswer = -1;
     gameState.answerPending = false;
     gameState.triedPlayers = new Set();
+    clearChoiceSelection();
     
     // Ocultar panel de ajuste si está visible
     document.getElementById('quick-adjust-panel').style.display = 'none';
@@ -444,8 +445,11 @@ socket.on('answer_result', (data) => {
             enableChoices(false);
             gameState.selectedAnswer = -1;
             gameState.answerPending = false;
+            clearChoiceSelection();
         } else {
             flashStatus('incorrect', 'INCORRECTO', 'Sin intentos restantes. Elige otra casilla.');
+            gameState.selectedAnswer = -1;
+            clearChoiceSelection();
         }
     }
 });
@@ -464,6 +468,7 @@ socket.on('close_question', () => {
     gameState.triedPlayers.clear();
     gameState.selectedAnswer = -1;
     gameState.answerPending = false;
+    clearChoiceSelection();
     
     // Asegurar que los controles vuelvan al modo tablero
     updateControlsMode();
@@ -486,6 +491,7 @@ socket.on('game_reset', (data) => {
     gameState.answerPending = false;
     updateControlsMode();
     setStatus('Juego reiniciado. Selecciona una casilla.', 'info');
+    clearChoiceSelection();
     
     // Reinicializar mosaico
     fetch('/api/images-folder')
@@ -647,9 +653,22 @@ function computeBoardLayout(categories) {
 // PANEL DE PREGUNTA
 // ===========================
 
+function clearChoiceSelection() {
+    document.querySelectorAll('.choice-option').forEach(option => {
+        option.classList.remove('selected');
+
+        const radio = option.querySelector('input');
+        if (radio) {
+            radio.checked = false;
+        }
+    });
+}
+
 function showQuestionPanel(question) {
     elements.boardContainer.style.display = 'none';
     elements.questionPanel.style.display = 'block';
+
+    clearChoiceSelection();
     
     document.getElementById('question-category').textContent = question.category;
     document.getElementById('question-value').textContent = `Valor: ${question.value}`;
@@ -777,15 +796,17 @@ function showQuestionPanel(question) {
 
 function closeQuestionPanel() {
     console.log('🔙 Cerrando panel de pregunta, volviendo al tablero');
-    
+
     elements.questionPanel.style.display = 'none';
     elements.boardContainer.style.display = 'block';
-    
+
     // Limpiar estado
     gameState.currentQuestion = null;
     gameState.selectedAnswer = -1;
     gameState.answerPending = false;
-    
+
+    clearChoiceSelection();
+
     // Restaurar controles del tablero
     updateControlsMode();
 }
