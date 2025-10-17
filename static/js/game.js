@@ -655,7 +655,18 @@ document.getElementById('app').addEventListener('contextmenu', (e) => {
 function showScoreMenu(event, playerIdx) {
     const menu = document.getElementById('score-menu');
     gameState.contextMenuPlayer = playerIdx;
-    
+
+    // Si el menú está dentro de un contenedor con z-index menor (como el header),
+    // lo movemos al <body> la primera vez para que pueda quedar por encima del
+    // overlay semitransparente. De lo contrario el overlay bloquea la interacción.
+    if (menu.parentElement !== document.body) {
+        // Guardar el contenedor original para referencia futura si es necesario.
+        if (!menu.dataset.originalParent) {
+            menu.dataset.originalParent = menu.parentElement.id || '';
+        }
+        document.body.appendChild(menu);
+    }
+
     // Crear overlay si no existe
     let overlay = document.getElementById('menu-overlay');
     if (!overlay) {
