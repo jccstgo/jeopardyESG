@@ -131,6 +131,11 @@ def get_images_folder():
     """Obtiene la carpeta de imágenes actual"""
     return jsonify({"images_folder": game.images_folder})
 
+@app.route('/manual')
+def manual():
+    """Página del manual de usuario"""
+    return render_template('manual.html')
+
 # =====================
 # WEBSOCKET EVENTS
 # =====================
