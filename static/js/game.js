@@ -1640,3 +1640,4 @@ function clearMosaicFromCell(cell) {
         cell.textContent = cell.dataset.value;
     }
 }
+}
