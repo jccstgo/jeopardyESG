@@ -503,14 +503,14 @@ socket.on('team_count_updated', (data) => {
 socket.on('close_question', () => {
     console.log('❌ Pregunta cerrada');
     closeQuestionPanel();
-    enableBuzzers(false);
     gameState.currentQuestion = null;
     gameState.currentBuzzer = null;
+    enableBuzzers(false);
     gameState.triedPlayers.clear();
     gameState.selectedAnswer = -1;
     gameState.answerPending = false;
     clearChoiceSelection();
-    
+
     // Asegurar que los controles vuelvan al modo tablero
     updateControlsMode();
     
