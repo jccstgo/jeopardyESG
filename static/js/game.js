@@ -11,7 +11,9 @@ const gameState = {
     answerPending: false,
     triedPlayers: new Set(),
     timerInterval: null,
-    contextMenuPlayer: null
+    contextMenuPlayer: null,
+    playerCount: 5,
+    scores: []
 };
 
 // Conexión WebSocket
@@ -28,11 +30,22 @@ const elements = {
     panelControls: document.getElementById('panel-controls'),
     moderatorControls: document.getElementById('moderator-controls'),
     hideAnswersCheckbox: document.getElementById('hide-answers'),
-    fileInput: document.getElementById('file-input')
+    fileInput: document.getElementById('file-input'),
+    playersBar: document.getElementById('players-bar'),
+    quickAdjustPanel: document.getElementById('quick-adjust-panel'),
+    quickAdjustPlayers: document.getElementById('quick-adjust-players'),
+    teamCountSelect: document.getElementById('team-count-select')
 };
 
 if (elements.fileInput) {
     elements.fileInput.addEventListener('change', handleFileSelection);
+}
+
+let suppressTeamCountChange = false;
+
+if (elements.teamCountSelect) {
+    populateTeamCountSelect();
+    elements.teamCountSelect.addEventListener('change', handleTeamCountChange);
 }
 
 const mosaic = (() => {
@@ -357,10 +370,14 @@ const sounds = {
 
 socket.on('connected', (data) => {
     console.log('📊 Estado inicial recibido');
+    if (data.game_state && typeof data.game_state.player_count === 'number') {
+        gameState.playerCount = data.game_state.player_count;
+    }
+
     renderBoard(data.board);
     updateScores(data.board.scores);
     setStatus('Selecciona una casilla para abrir una pregunta', 'info');
-    
+
     // Inicializar mosaico
     fetch('/api/images-folder')
         .then(r => r.json())
@@ -395,11 +412,11 @@ socket.on('question_opened', (data) => {
 socket.on('buzzer_activated', (data) => {
     console.log('🔔 Buzzer presionado:', data);
     gameState.currentBuzzer = data.player;
-    
+
     playSound('buzz');
-    updateBuzzerButtons();
+    refreshBuzzerState();
     setStatus(`Equipo ${data.player + 1} tiene el turno. ¡Responde!`, 'info');
-    
+
     // Habilitar opciones si están visibles
     if (!gameState.hideAnswers) {
         console.log('✅ Habilitando opciones para el jugador');
@@ -426,7 +443,7 @@ socket.on('answer_result', (data) => {
     if (data.result === 'correct') {
         playSound('correct');
         flashStatus('correct', 'CORRECTO', '¡Correcto! Elige otra casilla.');
-        
+
         // Revelar pieza del mosaico
         if (gameState.currentQuestion) {
             mosaic.revealPiece(
@@ -434,14 +451,15 @@ socket.on('answer_result', (data) => {
                 gameState.currentQuestion.clue_idx
             );
         }
+        refreshBuzzerState();
     } else {
         playSound('incorrect');
-        
+
         if (data.rebote) {
             flashStatus('incorrect', 'INCORRECTO', 'Rebote: otro equipo puede contestar.');
             gameState.triedPlayers.add(data.player);
             gameState.currentBuzzer = null;
-            updateBuzzerButtons();
+            refreshBuzzerState();
             enableChoices(false);
             gameState.selectedAnswer = -1;
             gameState.answerPending = false;
@@ -450,6 +468,7 @@ socket.on('answer_result', (data) => {
             flashStatus('incorrect', 'INCORRECTO', 'Sin intentos restantes. Elige otra casilla.');
             gameState.selectedAnswer = -1;
             clearChoiceSelection();
+            refreshBuzzerState();
         }
     }
 });
@@ -459,17 +478,39 @@ socket.on('scores_update', (data) => {
     updateScores(data.scores);
 });
 
+socket.on('team_count_updated', (data) => {
+    console.log('👥 Cantidad de equipos actualizada:', data);
+    const scores = Array.isArray(data.scores) ? data.scores : [];
+    const playerCount = typeof data.player_count === 'number' ? data.player_count : scores.length;
+
+    if (playerCount && playerCount !== gameState.playerCount) {
+        gameState.playerCount = playerCount;
+    }
+
+    gameState.triedPlayers = new Set(data.tried_players || []);
+    gameState.currentBuzzer = (typeof data.current_buzzer === 'number') ? data.current_buzzer : null;
+
+    renderPlayers(scores);
+    updateScores(scores);
+
+    refreshBuzzerState();
+
+    if (!data.timer_active) {
+        stopTimer();
+    }
+});
+
 socket.on('close_question', () => {
     console.log('❌ Pregunta cerrada');
     closeQuestionPanel();
-    enableBuzzers(false);
     gameState.currentQuestion = null;
     gameState.currentBuzzer = null;
+    enableBuzzers(false);
     gameState.triedPlayers.clear();
     gameState.selectedAnswer = -1;
     gameState.answerPending = false;
     clearChoiceSelection();
-    
+
     // Asegurar que los controles vuelvan al modo tablero
     updateControlsMode();
     
@@ -873,11 +914,15 @@ function openQuestion(catIdx, clueIdx) {
 }
 
 function pressBuzzer(playerIdx) {
+    if (playerIdx < 0 || playerIdx >= gameState.playerCount) {
+        return;
+    }
+
     if (gameState.triedPlayers.has(playerIdx)) {
         console.log('⚠️ Jugador ya intentó');
         return;
     }
-    
+
     console.log('🔔 Presionando buzzer:', playerIdx);
     socket.emit('buzzer_press', { player: playerIdx });
 }
@@ -1125,23 +1170,155 @@ function stopTimer() {
     stopSound('countdown');
 }
 
+function populateTeamCountSelect() {
+    if (!elements.teamCountSelect) return;
+    elements.teamCountSelect.innerHTML = '';
+
+    for (let i = 2; i <= 10; i += 1) {
+        const option = document.createElement('option');
+        option.value = String(i);
+        option.textContent = `${i} equipos`;
+        elements.teamCountSelect.appendChild(option);
+    }
+
+    setTeamCountSelectValue(gameState.playerCount);
+}
+
+function setTeamCountSelectValue(count) {
+    if (!elements.teamCountSelect) return;
+    suppressTeamCountChange = true;
+    elements.teamCountSelect.value = String(count);
+    suppressTeamCountChange = false;
+}
+
+function handleTeamCountChange(event) {
+    if (suppressTeamCountChange) return;
+    const value = parseInt(event.target.value, 10);
+    if (Number.isNaN(value) || value === gameState.playerCount) return;
+
+    socket.emit('set_team_count', { count: value });
+}
+
+function renderPlayers(scores = []) {
+    if (!elements.playersBar || !elements.quickAdjustPlayers) return;
+
+    const desiredCount = scores.length || gameState.playerCount || 5;
+    const count = Math.min(10, Math.max(2, desiredCount));
+    gameState.playerCount = count;
+    setTeamCountSelectValue(count);
+
+    elements.playersBar.innerHTML = '';
+    elements.quickAdjustPlayers.innerHTML = '';
+
+    for (let i = 0; i < count; i += 1) {
+        const scoreValue = typeof scores[i] !== 'undefined' ? scores[i] : 0;
+
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'player';
+        playerDiv.dataset.player = String(i);
+        playerDiv.style.animationDelay = `${(i + 1) * 0.1}s`;
+
+        const button = document.createElement('button');
+        button.className = 'buzzer-btn';
+        button.disabled = true;
+        button.innerHTML = `<span>🏆</span> Equipo ${i + 1}`;
+        button.addEventListener('click', () => pressBuzzer(i));
+
+        const scoreEl = document.createElement('div');
+        scoreEl.className = 'score';
+        scoreEl.textContent = scoreValue;
+
+        playerDiv.appendChild(button);
+        playerDiv.appendChild(scoreEl);
+
+        playerDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showScoreMenu(e, i);
+        });
+
+        elements.playersBar.appendChild(playerDiv);
+
+        const adjustDiv = document.createElement('div');
+        adjustDiv.className = 'player-adjust';
+        adjustDiv.dataset.player = String(i);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'player-name';
+        nameSpan.textContent = `Equipo ${i + 1}`;
+
+        const buttonsWrap = document.createElement('div');
+        buttonsWrap.className = 'adjust-buttons';
+
+        const minusBtn = document.createElement('button');
+        minusBtn.className = 'btn-adjust minus';
+        minusBtn.textContent = '-100';
+        minusBtn.title = 'Restar 100';
+        minusBtn.addEventListener('click', () => quickAdjust(i, -100));
+
+        const quickScore = document.createElement('span');
+        quickScore.className = 'player-quick-score';
+        quickScore.textContent = scoreValue;
+
+        const plusBtn = document.createElement('button');
+        plusBtn.className = 'btn-adjust plus';
+        plusBtn.textContent = '+100';
+        plusBtn.title = 'Sumar 100';
+        plusBtn.addEventListener('click', () => quickAdjust(i, 100));
+
+        buttonsWrap.appendChild(minusBtn);
+        buttonsWrap.appendChild(quickScore);
+        buttonsWrap.appendChild(plusBtn);
+
+        adjustDiv.appendChild(nameSpan);
+        adjustDiv.appendChild(buttonsWrap);
+
+        elements.quickAdjustPlayers.appendChild(adjustDiv);
+    }
+
+    refreshBuzzerState();
+    updateQuickAdjustScores();
+}
+
+function refreshBuzzerState() {
+    const buttons = document.querySelectorAll('.buzzer-btn');
+    if (!buttons.length) return;
+
+    if (!gameState.currentQuestion) {
+        buttons.forEach((btn) => {
+            btn.disabled = true;
+        });
+        updateBuzzerButtons();
+        return;
+    }
+
+    if (gameState.currentBuzzer === null) {
+        buttons.forEach((btn, idx) => {
+            btn.disabled = gameState.triedPlayers.has(idx);
+        });
+    } else {
+        buttons.forEach((btn, idx) => {
+            btn.disabled = idx !== gameState.currentBuzzer;
+        });
+    }
+
+    updateBuzzerButtons();
+}
+
 // ===========================
 // BUZZER BUTTONS
 // ===========================
 
 function enableBuzzers(enable) {
-    document.querySelectorAll('.buzzer-btn').forEach((btn, idx) => {
-        if (enable && !gameState.triedPlayers.has(idx)) {
-            btn.disabled = false;
-        } else {
-            btn.disabled = true;
-        }
-    });
-    
-    if (!enable) {
-        gameState.currentBuzzer = null;
+    if (enable) {
+        refreshBuzzerState();
+        return;
     }
-    
+
+    document.querySelectorAll('.buzzer-btn').forEach((btn) => {
+        btn.disabled = true;
+    });
+
     updateBuzzerButtons();
 }
 
@@ -1160,31 +1337,32 @@ function updateBuzzerButtons() {
 // ===========================
 
 function updateScores(scores) {
-    document.querySelectorAll('.player').forEach((player, idx) => {
+    if (!Array.isArray(scores)) return;
+
+    gameState.scores = scores.slice();
+    gameState.playerCount = scores.length || gameState.playerCount;
+
+    const players = document.querySelectorAll('.player');
+    if (players.length !== scores.length) {
+        renderPlayers(scores);
+        return;
+    }
+
+    players.forEach((player, idx) => {
         const scoreEl = player.querySelector('.score');
         if (scoreEl) {
-            scoreEl.textContent = scores[idx] || 0;
+            const scoreValue = typeof scores[idx] !== 'undefined' ? scores[idx] : 0;
+            scoreEl.textContent = scoreValue;
         }
     });
-    
-    // Actualizar panel de ajuste rápido si está visible
-    if (document.getElementById('quick-adjust-panel').style.display !== 'none') {
-        updateQuickAdjustScores();
-    }
+
+    updateQuickAdjustScores();
 }
 
 // Menú contextual para ajustar puntajes
 // Nota: los botones de timbre suelen estar deshabilitados, por lo que no
 // reciben eventos de contexto. Asociamos el menú al contenedor completo del
 // jugador para garantizar que el clic derecho funcione siempre.
-document.querySelectorAll('.player').forEach((playerEl, idx) => {
-    playerEl.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showScoreMenu(e, idx);
-    });
-});
-
 // Prevenir menú contextual del navegador en el área de juego
 document.getElementById('app').addEventListener('contextmenu', (e) => {
     // Solo prevenir si es sobre un botón de buzzer
@@ -1194,6 +1372,9 @@ document.getElementById('app').addEventListener('contextmenu', (e) => {
 });
 
 function showScoreMenu(event, playerIdx) {
+    if (playerIdx === null || playerIdx < 0 || playerIdx >= gameState.playerCount) {
+        return;
+    }
     const menu = document.getElementById('score-menu');
     gameState.contextMenuPlayer = playerIdx;
 
@@ -1308,7 +1489,7 @@ function closeScoreMenu() {
 
 function adjustScore(player, delta) {
     const playerIdx = gameState.contextMenuPlayer;
-    if (playerIdx === null || playerIdx < 0 || playerIdx >= 5) return;
+    if (playerIdx === null || playerIdx < 0 || playerIdx >= gameState.playerCount) return;
     
     console.log(`💰 Ajustando puntaje: Jugador ${playerIdx + 1}, Delta: ${delta}`);
     socket.emit('adjust_score', { player: playerIdx, delta });
@@ -1322,7 +1503,7 @@ function adjustScore(player, delta) {
 
 function adjustScoreByQuestionValue(player, multiplier) {
     const playerIdx = gameState.contextMenuPlayer;
-    if (playerIdx === null || playerIdx < 0 || playerIdx >= 5) return;
+    if (playerIdx === null || playerIdx < 0 || playerIdx >= gameState.playerCount) return;
     
     // Obtener el valor de la última pregunta o usar 100 por defecto
     let value = 100;
@@ -1342,7 +1523,7 @@ function adjustScoreByQuestionValue(player, multiplier) {
 
 function editScore() {
     const playerIdx = gameState.contextMenuPlayer;
-    if (playerIdx === null || playerIdx < 0 || playerIdx >= 5) return;
+    if (playerIdx === null || playerIdx < 0 || playerIdx >= gameState.playerCount) return;
     
     // Cerrar menú primero
     closeScoreMenu();
@@ -1358,7 +1539,7 @@ function editScore() {
 
 function resetPlayerScore() {
     const playerIdx = gameState.contextMenuPlayer;
-    if (playerIdx === null || playerIdx < 0 || playerIdx >= 5) return;
+    if (playerIdx === null || playerIdx < 0 || playerIdx >= gameState.playerCount) return;
     
     // Cerrar menú primero
     closeScoreMenu();
@@ -1371,7 +1552,7 @@ function resetPlayerScore() {
 }
 
 function quickAdjust(playerIdx, delta) {
-    if (playerIdx < 0 || playerIdx >= 5) return;
+    if (playerIdx < 0 || playerIdx >= gameState.playerCount) return;
     
     console.log(`⚡ Ajuste rápido: Jugador ${playerIdx + 1}, Delta: ${delta}`);
     socket.emit('adjust_score', { player: playerIdx, delta });
@@ -1430,9 +1611,10 @@ function showScoreAdjustFeedback(playerIdx, delta) {
 }
 
 function toggleQuickAdjust() {
-    const panel = document.getElementById('quick-adjust-panel');
+    const panel = elements.quickAdjustPanel;
+    if (!panel) return;
     const isVisible = panel.style.display !== 'none';
-    
+
     if (isVisible) {
         panel.style.display = 'none';
     } else {
@@ -1442,9 +1624,11 @@ function toggleQuickAdjust() {
 }
 
 function updateQuickAdjustScores() {
+    if (!elements.quickAdjustPlayers) return;
+
     const scores = document.querySelectorAll('.score');
-    const quickScores = document.querySelectorAll('.player-quick-score');
-    
+    const quickScores = elements.quickAdjustPlayers.querySelectorAll('.player-quick-score');
+
     scores.forEach((scoreEl, idx) => {
         if (quickScores[idx]) {
             quickScores[idx].textContent = scoreEl.textContent;
@@ -1603,13 +1787,15 @@ function stopAllSounds() {
 // ===========================
 
 document.addEventListener('keydown', (e) => {
-    // Números 1-5 para buzzers
-    if (e.key >= '1' && e.key <= '5') {
-        const playerIdx = parseInt(e.key) - 1;
-        const btn = document.querySelectorAll('.buzzer-btn')[playerIdx];
-        if (btn && !btn.disabled) {
-            pressBuzzer(playerIdx);
-        }
+    // Números 1-9 y 0 para buzzers
+    if (e.key >= '1' && e.key <= '9') {
+        const playerIdx = parseInt(e.key, 10) - 1;
+        triggerBuzzerShortcut(playerIdx);
+        return;
+    }
+
+    if (e.key === '0') {
+        triggerBuzzerShortcut(9);
         return;
     }
     
@@ -1639,6 +1825,14 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+function triggerBuzzerShortcut(playerIdx) {
+    if (playerIdx < 0 || playerIdx >= gameState.playerCount) return;
+    const btn = document.querySelectorAll('.buzzer-btn')[playerIdx];
+    if (btn && !btn.disabled) {
+        pressBuzzer(playerIdx);
+    }
+}
+
 // ===========================
 // INICIALIZACIÓN AL CARGAR
 // ===========================
@@ -1650,6 +1844,9 @@ window.addEventListener('load', () => {
     fetch('/api/board')
         .then(r => r.json())
         .then(data => {
+            if (typeof data.player_count === 'number') {
+                gameState.playerCount = data.player_count;
+            }
             renderBoard(data);
             updateScores(data.scores);
         })
