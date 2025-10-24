@@ -1381,7 +1381,7 @@ button:active {
     align-items: center;
     justify-content: center;
     z-index: 99999;
-    animation: fadeOut 0.5s ease 3s forwards;
+    animation: fadeOut 0.5s ease 10s forwards;
 }
 
 .splash-content {
@@ -1395,13 +1395,13 @@ button:active {
 }
 
 .splash-logo img {
-    max-width: 200px;
+    max-width: 400px;
     height: auto;
     filter: drop-shadow(0 10px 30px rgba(255, 215, 0, 0.3));
 }
 
 .logo-text {
-    font-size: 120px;
+    font-size: 200px;
     animation: bounce 1s ease infinite;
 }
 
@@ -1459,7 +1459,7 @@ button:active {
     height: 100%;
     background: linear-gradient(90deg, var(--accent-gold), var(--light-blue));
     border-radius: 10px;
-    animation: loading 2.5s ease forwards;
+    animation: loading 10s ease forwards;
 }
 
 .splash-hint {

@@ -16,14 +16,14 @@ const gameState = {
     scores: []
 };
 
-// Ocultar splash screen después de 3 segundos
+// Ocultar splash screen después de 10 segundos
 window.addEventListener('load', () => {
     setTimeout(() => {
         const splash = document.getElementById('splash-screen');
         if (splash) {
             splash.remove();
         }
-    }, 10000); // 3 segundos
+    }, 10000); // 10 segundos
 });
 
 // Conexión WebSocket
