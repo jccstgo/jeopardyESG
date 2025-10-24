@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Lógica del juego Jeopardy - Con soporte para imágenes
+Lógica del juego - Con soporte para imágenes
 """
 import json
 import csv
