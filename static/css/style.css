@@ -1366,3 +1366,149 @@ button:active {
     box-shadow: inset 0 6px 24px rgba(0, 0, 0, 0.45);
     border-color: rgba(255, 215, 0, 0.8);
 }
+
+/* ===========================
+   SPLASH SCREEN
+   =========================== */
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: linear-gradient(135deg, #0a1929 0%, #1e3a5f 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: fadeOut 0.5s ease 3s forwards;
+}
+
+.splash-content {
+    text-align: center;
+    animation: slideUp 0.8s ease;
+}
+
+.splash-logo {
+    margin-bottom: 30px;
+    animation: zoomIn 0.6s ease;
+}
+
+.splash-logo img {
+    max-width: 200px;
+    height: auto;
+    filter: drop-shadow(0 10px 30px rgba(255, 215, 0, 0.3));
+}
+
+.logo-text {
+    font-size: 120px;
+    animation: bounce 1s ease infinite;
+}
+
+.splash-title {
+    font-size: 64px;
+    font-weight: bold;
+    color: var(--accent-gold);
+    text-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+    margin-bottom: 10px;
+    letter-spacing: 8px;
+}
+
+.splash-subtitle {
+    font-size: 24px;
+    color: var(--white);
+    margin-bottom: 40px;
+    opacity: 0.9;
+}
+
+.splash-credits {
+    margin: 40px 0;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.splash-credits p {
+    color: var(--white);
+    margin: 5px 0;
+    font-size: 16px;
+}
+
+.credits-name {
+    font-size: 20px !important;
+    font-weight: bold;
+    color: var(--accent-gold) !important;
+}
+
+.credits-year {
+    font-size: 14px !important;
+    opacity: 0.7;
+}
+
+.splash-loader {
+    width: 300px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin: 30px auto;
+    overflow: hidden;
+}
+
+.loader-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-gold), var(--light-blue));
+    border-radius: 10px;
+    animation: loading 2.5s ease forwards;
+}
+
+.splash-hint {
+    color: var(--white);
+    font-size: 14px;
+    opacity: 0.7;
+    animation: pulse 1.5s ease infinite;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes zoomIn {
+    from {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes loading {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}

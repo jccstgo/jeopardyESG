@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Servidor Flask para Jeopardy Web
+Servidor Flask 
 WebSockets para comunicación en tiempo real
 Con soporte para imágenes en preguntas
 """
@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'jeopardy_secret_2025'
+app.config['SECRET_KEY'] = 'secret_2025'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Instancia global del juego
@@ -346,7 +346,7 @@ if __name__ == '__main__':
     
     
     print("\n" + "="*50)
-    print("🎮 JEOPARDY WEB - Servidor Iniciado")
+    print("🎮 Painani del Conocimiento - Servidor Iniciado")
     print("="*50)
     print("📍 URL: http://localhost:5000")
     print("📍 Red local: http://[tu-ip]:5000")

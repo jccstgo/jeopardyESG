@@ -3,11 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎮 Jeopardy - Escuela Superior de Guerra</title>
+    <title>🎮 Painani del Conocimiento - Escuela Superior de Guerra</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
 </head>
 <body>
+    <!-- SPLASH SCREEN -->
+    <div id="splash-screen">
+        <div class="splash-content">
+            <div class="splash-logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo ESG">
+                <!-- O si prefieres un emoji/texto: -->
+                <!-- <div class="logo-text">🎮</div> -->
+            </div>
+            <h1 class="splash-title">PAINANI DEL CONOCIMIENTO</h1>
+            <p class="splash-subtitle">Escuela Superior de Guerra</p>
+            <div class="splash-credits">
+                <p class="credits-name">Centro Militar de Entrenamiento Sistematizado</p>
+                <p class="credits-year">© 2025</p>
+            </div>
+            <div class="splash-loader">
+                <div class="loader-bar"></div>
+            </div>
+            <p class="splash-hint">Cargando...</p>
+        </div>
+    </div>
+
     <div id="app">
         <!-- BARRA SUPERIOR -->
         <header id="header">
@@ -76,8 +97,11 @@
                 </div>
                 
                 <div id="question-footer">
-                    <div id="question-status">
+                    <!--div id="question-status">
                         ⏳ Esperando timbre...
+                    </div-->
+                    <div id="question-status" style="display: none;">
+                        <!-- Contenedor oculto pero presente en el DOM -->
                     </div>
                     <div id="timer-container">
                         <div class="timer-label">⏱️ Tiempo</div>

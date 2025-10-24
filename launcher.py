@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Launcher para Jeopardy Web
+Launcher para Web
 Abre automáticamente el navegador
 """
 import os
@@ -44,7 +44,7 @@ from app import app, socketio
 import game_logic
 
 print("\n" + "="*60)
-print("🎮 JEOPARDY - ESCUELA SUPERIOR DE GUERRA")
+print("🎮 PAINANI DEL CONOCIMIENTO - ESCUELA SUPERIOR DE GUERRA")
 print("="*60)
 print("🚀 Iniciando servidor...")
 print("📍 URL: http://localhost:5000")
@@ -53,5 +53,5 @@ print("="*60 + "\n")
 try:
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
 except KeyboardInterrupt:
-    print("\n\n👋 Cerrando Jeopardy. ¡Hasta pronto!")
+    print("\n\n👋 Cerrando Painani. ¡Hasta pronto!")
     sys.exit(0)

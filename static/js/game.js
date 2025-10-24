@@ -1,5 +1,5 @@
 // ===========================
-// JEOPARDY WEB - CLIENTE
+// PAINANI WEB - CLIENTE
 // ===========================
 
 // Estado global
@@ -15,6 +15,16 @@ const gameState = {
     playerCount: 5,
     scores: []
 };
+
+// Ocultar splash screen después de 3 segundos
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.remove();
+        }
+    }, 10000); // 3 segundos
+});
 
 // Conexión WebSocket
 const socket = io();
@@ -714,7 +724,8 @@ function showQuestionPanel(question) {
     document.getElementById('question-category').textContent = question.category;
     document.getElementById('question-value').textContent = `Valor: ${question.value}`;
     document.getElementById('question-text').textContent = question.question;
-    document.getElementById('question-status').textContent = 'Esperando timbre...';
+    // document.getElementById('question-status').textContent = 'Esperando timbre...';
+    document.getElementById('question-status').textContent = '';
     
     // Determinar si hay imagen
     const hasImage = question.image && question.image_folder;
@@ -827,7 +838,8 @@ function showQuestionPanel(question) {
         });
     } else if (gameState.hideAnswers) {
         if (!hasImage) {
-            choicesContainer.innerHTML = '<p style="text-align:center;color:#FFD700;font-size:18px;padding:20px;">🔒 Modo moderador: respuestas ocultas</p>';
+            // choicesContainer.innerHTML = '<p style="text-align:center;color:#FFD700;font-size:18px;padding:20px;">🔒 Modo moderador: respuestas ocultas</p>';
+            choicesContainer.innerHTML = '';
         }
         // Si hay imagen y respuestas ocultas, no mostrar nada en el contenedor de opciones
     }
@@ -1838,7 +1850,7 @@ function triggerBuzzerShortcut(playerIdx) {
 // ===========================
 
 window.addEventListener('load', () => {
-    console.log('🎮 Jeopardy Web iniciado');
+    console.log('🎮 Painani Web iniciado');
     
     // Cargar tablero inicial
     fetch('/api/board')

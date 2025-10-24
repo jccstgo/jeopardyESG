@@ -1,6 +1,6 @@
-# 🎮 Jeopardy Web - Escuela Superior de Guerra
+# 🎮 Painani Web - Escuela Superior de Guerra
 
-Sistema de preguntas y respuestas estilo Jeopardy para competencias entre equipos, completamente funcional en entorno local.
+Sistema de preguntas y respuestas para competencias entre equipos, completamente funcional en entorno local.
 
 ## 🚀 Inicio Rápido
 
@@ -8,7 +8,7 @@ Sistema de preguntas y respuestas estilo Jeopardy para competencias entre equipo
 
 ```bash
 # Clonar o descargar el proyecto
-cd jeopardy-web
+cd painani-web
 
 # Instalar dependencias
 pip install -r requirements.txt
